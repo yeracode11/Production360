@@ -1,72 +1,91 @@
 # Production360 Backend
 
-PostgreSQL + FastAPI: **синк номенклатуры из 1С** и **поиск для мобилки**.
-
-Заказы, авторизация, типы заявок — **в 1С**. Каталог — **здесь**.
+PostgreSQL + FastAPI: **синк каталога из 1С** и **поиск для мобилки**.
 
 ## Схема
 
 ```
-1С разработчик ──POST /sync/units, /sync/products──►  PostgreSQL
+1С ──POST /sync/units, /sync/products──►  PostgreSQL (upsert)
 Мобилка ──GET /nomenclature/search?q=──►  Backend
 Мобилка ──auth, заказы, type/data──────►  1С
 ```
 
-## Для разработчика 1С (синк)
+## Для разработчика 1С — два endpoint синка
 
-Отправляйте JSON выгрузки на наш API:
+Базовый URL: `https://p360.darasoft.kz`
 
-| Метод | URL | `dataType` в body |
-|-------|-----|-------------------|
-| POST | `{BASE_URL}/sync/units` | `edinicaIzm` |
-| POST | `{BASE_URL}/sync/products` | `nomenklatura` |
+| Метод | Путь | `dataType` в body |
+|-------|------|-------------------|
+| POST | `/sync/units` | `edinicaIzm` |
+| POST | `/sync/products` | `nomenklatura` |
 
-Формат body:
+Создание и замена — **upsert по полю `Ссылка`** (UUID).
+
+### Единицы измерения
+
+`POST /sync/units`
+
+```json
+{
+  "dataType": "edinicaIzm",
+  "data": [
+    {
+      "Ссылка": "08f0b406-cace-11f0-96c8-3cecef963ddd",
+      "Код": "796",
+      "Наименование": "шт",
+      "НаименованиеПолное": "Штука",
+      "ПометкаУдаления": false
+    }
+  ]
+}
+```
+
+### Номенклатура
+
+`POST /sync/products`
 
 ```json
 {
   "dataType": "nomenklatura",
-  "data": [ { "Ссылка": "...", "Код": "...", "Наименование": "...", ... } ]
+  "data": [
+    {
+      "Ссылка": "a1a27397-cbc5-11f0-96c8-3cecef963ddd",
+      "Код": "НФ-00001210",
+      "Наименование": "ВАФЕЛЬНАЯ тряпка",
+      "ЕдиницаИзмерения": "08f0b406-cace-11f0-96c8-3cecef963ddd",
+      "Комментарий": "q_active",
+      "ТипНоменклатуры": "Запас",
+      "ПометкаУдаления": false,
+      "ЭтоГруппа": false
+    }
+  ]
 }
 ```
 
-Поля — как в обмене 1С (`Ссылка`, `Код`, `Наименование`, `ЕдиницаИзмерения`, `Комментарий`, `ТипНоменклатуры`, …).
+**Ответ (для обоих):**
 
-Синк **upsert по `Ссылка`** (id). Мобилка не дергает 1С для поиска — только этот backend после синка.
+```json
+{ "data_type": "nomenklatura", "received": 300, "upserted": 300 }
+```
 
-## Запуск (dev)
+## Запуск
 
 ```bash
 cd backend
-cp .env.example .env
 docker compose up -d
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Проверка синка вручную (тот же формат, что шлёт 1С):
+Создать таблицы вручную (если API ещё не запускали):
 
 ```bash
-python scripts/sync_catalog.py path/to/export.json
+source .venv/bin/activate
+python scripts/init_db.py
 ```
 
 ## API для мобилки
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/health` | Проверка |
-| GET | `/nomenclature/search?q=банан` | Поиск (обязательный `q`) |
-
-Параметры поиска: `active_only=true`, `stock_only=true` (только «Запас»), `limit`, `offset`.
-
-## БД
-
-`units`, `products` — `app/models/catalog.py`.
-
-## Следующий шаг
-
-- Прод URL в `CatalogConfig` (Flutter)
-- Auth на sync/search API
-- Периодический синк из 1С (cron / webhook)
+| Метод | Путь |
+|-------|------|
+| GET | `/health` |
+| GET | `/nomenclature/search?q=банан` |

@@ -80,6 +80,7 @@ async def sync_units_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),
 ) -> SyncResult:
+    """Синк единиц измерения из 1С (upsert по «Ссылка»). dataType=edinicaIzm."""
     data_type = payload.get("dataType")
     if data_type != "edinicaIzm":
         raise HTTPException(status_code=400, detail="Expected dataType=edinicaIzm")
@@ -97,6 +98,7 @@ async def sync_products_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),
 ) -> SyncResult:
+    """Синк номенклатуры из 1С (upsert по «Ссылка»). dataType=nomenklatura."""
     data_type = payload.get("dataType")
     if data_type != "nomenklatura":
         raise HTTPException(status_code=400, detail="Expected dataType=nomenklatura")
