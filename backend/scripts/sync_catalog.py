@@ -17,7 +17,7 @@ SYNC_ENDPOINTS = {
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync catalog JSON from 1C to backend")
     parser.add_argument("file", type=Path, help="JSON file with dataType + data")
-    parser.add_argument("--base-url", default="http://localhost:8000")
+    parser.add_argument("--base-url", default="https://p360.darasoft.kz")
     args = parser.parse_args()
 
     if not args.file.exists():
