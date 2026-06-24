@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 
 import '../../core/config/catalog_config.dart';
-import '../../core/utils/order_item_display.dart';
 import '../../domain/entities/order_type_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../models/order_type_data_model.dart';
@@ -33,13 +32,6 @@ class CatalogRepositoryImpl implements CatalogRepository {
       final items = json['items'] as List<dynamic>? ?? [];
 
       return items
-          .where((raw) {
-            final map = raw as Map<String, dynamic>;
-            return isSelectableCreateOrderProduct(
-              name: map['name'] as String? ?? '',
-              productType: map['product_type'] as String?,
-            );
-          })
           .map(
             (e) => OrderTypeProductModel.fromJson(e as Map<String, dynamic>),
           )
@@ -50,6 +42,10 @@ class CatalogRepositoryImpl implements CatalogRepository {
   }
 
   String _mapDioError(DioException e) {
+    final status = e.response?.statusCode;
+    if (status == 401 || status == 403) {
+      return 'Неверный токен каталога';
+    }
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
       return 'Сервер каталога не отвечает';

@@ -56,17 +56,24 @@ Future<void> configureDependencies() async {
   );
 
   sl.registerLazySingleton<Dio>(
-    () => Dio(
-      BaseOptions(
-        baseUrl: CatalogConfig.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
-    ),
+    () {
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final token = CatalogConfig.bearerToken.trim();
+      if (token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      return Dio(
+        BaseOptions(
+          baseUrl: CatalogConfig.baseUrl,
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          headers: headers,
+        ),
+      );
+    },
     instanceName: 'catalog',
   );
   sl.registerLazySingleton<CatalogRepository>(

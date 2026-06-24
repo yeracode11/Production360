@@ -113,6 +113,26 @@ async def list_units(session: AsyncSession, include_deleted: bool = False) -> li
     return list(result.scalars().all())
 
 
+async def list_nomenclature_search(
+    session: AsyncSession,
+    *,
+    search: str,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[Product], int]:
+    """Поиск для мобилки: не удалённые, не группы, только «Запас», активные (q_active)."""
+    return await list_products(
+        session,
+        search=search,
+        active_only=True,
+        include_groups=False,
+        include_deleted=False,
+        stock_only=True,
+        limit=limit,
+        offset=offset,
+    )
+
+
 async def list_products(
     session: AsyncSession,
     *,
@@ -162,6 +182,7 @@ def product_to_out(product: Product) -> dict[str, Any]:
         "edIzm": unit_short,
         "unit_id": product.unit_id,
         "is_group": product.is_group,
+        "is_deleted": product.is_deleted,
         "is_active": product.comment == ACTIVE_PRODUCT_COMMENT and not product.is_deleted,
         "product_type": product.product_type,
         "barcode": product.barcode,

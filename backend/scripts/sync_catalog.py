@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Sync catalog JSON from 1C to backend")
     parser.add_argument("file", type=Path, help="JSON file with dataType + data")
     parser.add_argument("--base-url", default="https://p360.darasoft.kz")
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("API_BEARER_TOKEN", ""),
+        help="Bearer token (or set API_BEARER_TOKEN env)",
+    )
     args = parser.parse_args()
+
+    if not args.token.strip():
+        print("Error: pass --token or set API_BEARER_TOKEN")
+        sys.exit(1)
 
     if not args.file.exists():
         print(f"File not found: {args.file}")
@@ -34,7 +44,8 @@ def main() -> None:
         sys.exit(1)
 
     url = f"{args.base_url.rstrip('/')}{endpoint}"
-    response = httpx.post(url, json=payload, timeout=120.0)
+    headers = {"Authorization": f"Bearer {args.token.strip()}"}
+    response = httpx.post(url, json=payload, headers=headers, timeout=120.0)
     if response.status_code >= 400:
         print(f"Error {response.status_code}: {response.text}")
         sys.exit(1)

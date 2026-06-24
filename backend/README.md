@@ -11,7 +11,25 @@ PostgreSQL + FastAPI: **синк каталога из 1С** и **поиск д�
 | 1С синк единиц | `POST https://p360.darasoft.kz/sync/units` |
 | 1С синк номенклатуры | `POST https://p360.darasoft.kz/sync/products` |
 | Мобилка поиск | `GET https://p360.darasoft.kz/nomenclature/search?q=...` |
-| Проверка | `GET https://p360.darasoft.kz/health` |
+| Проверка | `GET https://p360.darasoft.kz/health` (без токена) |
+
+### Авторизация (Bearer)
+
+Все endpoint **кроме `/health`** требуют заголовок:
+
+```http
+Authorization: Bearer <API_BEARER_TOKEN>
+```
+
+Токен задаётся в `backend/.env` на сервере:
+
+```env
+API_BEARER_TOKEN=ваш-длинный-секрет
+```
+
+Сгенерировать: `openssl rand -hex 32`
+
+Тот же токен — в мобилке `lib/core/config/catalog_config.dart` → `bearerToken`.
 
 `localhost` в `.env` — **только внутри сервера** (FastAPI подключается к Postgres в docker). Снаружи его не используют.
 
@@ -133,6 +151,41 @@ certbot --nginx -d p360.darasoft.kz
 curl https://p360.darasoft.kz/health
 ```
 
+### Bearer не работает — диагностика на сервере
+
+```bash
+cd /root/Production360/backend
+
+# 1. Токен реально загружен в приложение (длина > 0)
+.venv/bin/python -c "from app.config import settings; print(len(settings.api_bearer_token))"
+
+# 2. В логах после restart должно быть: API bearer auth enabled (token length=...)
+journalctl -u production360-api -n 30 --no-pager
+
+# 3. Прямо на uvicorn (минуя nginx) — без токена 401, с токеном 200
+TOKEN=$(grep '^API_BEARER_TOKEN=' .env | cut -d= -f2-)
+curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8000/nomenclature/search?q=test"
+curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:8000/nomenclature/search?q=test"
+
+# 4. Через nginx — если (3) ок, а здесь 401 с тем же токеном — обновите nginx:
+#    в deploy/nginx-p360.conf есть proxy_set_header Authorization $http_authorization;
+nginx -t && systemctl reload nginx
+```
+
+Формат `.env` — **без кавычек** и пробелов вокруг `=`:
+
+```env
+API_BEARER_TOKEN=a1b2c3d4e5f6...
+```
+
+В `curl` URL всегда в кавычках; кириллицу в `q` кодировать:
+
+```bash
+curl -s -G -H "Authorization: Bearer $TOKEN" --data-urlencode "q=банан" \
+  "https://p360.darasoft.kz/nomenclature/search"
+```
+
 ## Локальный dev
 
 ```bash
@@ -153,4 +206,4 @@ python scripts/init_db.py
 | Метод | Путь |
 |-------|------|
 | GET | `/health` |
-| GET | `/nomenclature/search?q=банан` |
+| GET | `/nomenclature/search?q=банан` | Поиск: не удалённые, не группы, только `Запас`, `q_active` |

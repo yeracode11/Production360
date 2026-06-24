@@ -3,9 +3,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import require_api_token
 from app.database import get_db
 from app.schemas.catalog import ProductListResponse, ProductOut, SyncResult, UnitOut
 from app.services.catalog import (
+    list_nomenclature_search,
     list_products,
     list_units,
     product_to_out,
@@ -21,7 +23,7 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.get("/units", response_model=list[UnitOut])
+@router.get("/units", response_model=list[UnitOut], dependencies=[Depends(require_api_token)])
 async def get_units(
     include_deleted: bool = Query(default=False),
     session: AsyncSession = Depends(get_db),
@@ -30,21 +32,21 @@ async def get_units(
     return [UnitOut.model_validate(u) for u in units]
 
 
-@router.get("/nomenclature/search", response_model=ProductListResponse)
+@router.get(
+    "/nomenclature/search",
+    response_model=ProductListResponse,
+    dependencies=[Depends(require_api_token)],
+)
 async def search_nomenclature(
     q: str = Query(..., min_length=1, description="Поиск по названию, коду, артикулу"),
-    active_only: bool = Query(default=True),
-    stock_only: bool = Query(default=True),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db),
 ) -> ProductListResponse:
-    products, total = await list_products(
+    """Только: is_deleted=false, is_group=false, product_type=Запас, comment=q_active."""
+    products, total = await list_nomenclature_search(
         session,
         search=q,
-        active_only=active_only,
-        include_groups=False,
-        stock_only=stock_only,
         limit=limit,
         offset=offset,
     )
@@ -52,7 +54,12 @@ async def search_nomenclature(
     return ProductListResponse(total=total, items=items)
 
 
-@router.get("/products", response_model=ProductListResponse, deprecated=True)
+@router.get(
+    "/products",
+    response_model=ProductListResponse,
+    deprecated=True,
+    dependencies=[Depends(require_api_token)],
+)
 async def get_products_legacy(
     search: str = Query(..., min_length=1),
     active_only: bool = Query(default=True),
@@ -75,7 +82,7 @@ async def get_products_legacy(
     return ProductListResponse(total=total, items=items)
 
 
-@router.post("/sync/units", response_model=SyncResult)
+@router.post("/sync/units", response_model=SyncResult, dependencies=[Depends(require_api_token)])
 async def sync_units_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),
@@ -93,7 +100,7 @@ async def sync_units_endpoint(
     return SyncResult(data_type=data_type, received=len(items), upserted=upserted)
 
 
-@router.post("/sync/products", response_model=SyncResult)
+@router.post("/sync/products", response_model=SyncResult, dependencies=[Depends(require_api_token)])
 async def sync_products_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),

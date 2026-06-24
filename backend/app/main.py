@@ -1,3 +1,5 @@
+import logging
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,9 +11,17 @@ from app.database import engine
 from app.models import Product, Unit  # noqa: F401
 from app.models.base import Base
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    token_len = len(settings.api_bearer_token)
+    if token_len == 0:
+        logger.warning("API_BEARER_TOKEN is empty — protected routes return 503")
+    else:
+        logger.info("API bearer auth enabled (token length=%d)", token_len)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
