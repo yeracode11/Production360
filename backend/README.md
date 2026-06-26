@@ -142,13 +142,47 @@ apt install -y nginx certbot python3-certbot-nginx
 cp deploy/nginx-p360.conf /etc/nginx/sites-available/p360
 ln -sf /etc/nginx/sites-available/p360 /etc/nginx/sites-enabled/p360
 nginx -t && systemctl reload nginx
+# ВАЖНО: deploy/nginx-p360.conf — только HTTP (80). Certbot добавляет SSL (443).
 certbot --nginx -d p360.darasoft.kz
 ```
+
+**Не копируйте `nginx-p360.conf` поверх активного конфига без `certbot --nginx` после** — HTTPS (443) пропадёт, мобилка перестанет подключаться.
 
 ### 5. Проверка снаружи
 
 ```bash
 curl https://p360.darasoft.kz/health
+```
+
+### HTTPS не работает (443, «сервер упал» для мобилки)
+
+Симптом: `http://p360.darasoft.kz/health` → 200, `https://...` → connection refused.
+
+API и Postgres могут быть живы — упал только SSL в nginx (часто после `cp deploy/nginx-p360.conf` без certbot).
+
+```bash
+# Статус
+systemctl status nginx production360-api --no-pager
+ss -tlnp | grep -E ':80|:443'
+curl -s http://127.0.0.1:8000/health
+
+# Восстановить HTTPS
+nginx -t
+certbot certificates
+certbot --nginx -d p360.darasoft.kz
+nginx -t && systemctl reload nginx
+
+# Проверка
+curl -s https://p360.darasoft.kz/health
+```
+
+Если API не отвечает на 8000:
+
+```bash
+cd /root/Production360/backend
+docker compose up -d
+systemctl restart production360-api
+journalctl -u production360-api -n 50 --no-pager
 ```
 
 ### Bearer не работает — диагностика на сервере
