@@ -23,7 +23,7 @@ class ReceiptOrderItemRequest extends Equatable {
 
   final String productId;
   final int shipped;
-  final int received;
+  final String received;
 
   @override
   List<Object?> get props => [productId, shipped, received];

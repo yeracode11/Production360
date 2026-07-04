@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/amount_parser.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../../core/utils/quantity_input.dart';
 import '../../../core/utils/receipt_display_name.dart';
 import '../../../domain/entities/receipt_order_request.dart';
 import '../../../domain/entities/order_item.dart';
@@ -13,13 +15,17 @@ import '../../../domain/entities/order_request.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../bloc/orders/orders_cubit.dart';
 import '../../widgets/confirm_action_dialog.dart';
-import '../../widgets/receipt_preview_item.dart';
-import 'receipt_preview_screen.dart';
+import '../../widgets/dismiss_keyboard.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
-  const OrderDetailsScreen({super.key, required this.orderId});
+  const OrderDetailsScreen({
+    super.key,
+    required this.orderId,
+    this.initialTabIndex = 0,
+  });
 
   final String orderId;
+  final int initialTabIndex;
 
   @override
   State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
@@ -37,7 +43,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
+    );
     _tabController.addListener(() => setState(() {}));
     _loadOrder();
   }
@@ -89,6 +99,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         _order = order;
         if (showLoading) _isLoading = false;
       });
+      _openReceiptTabIfNeeded(order);
     } catch (e) {
       setState(() {
         _loadError = e.toString().replaceFirst('Exception: ', '');
@@ -105,28 +116,63 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     return order.deliveryDateDisplay ?? _formatDate(order.deliveryDate);
   }
 
+  void _openReceiptTabIfNeeded(OrderRequest order) {
+    if (!order.canEditReceipt || _tabController.index == 1) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _tabController.index == 1) return;
+      _tabController.animateTo(1);
+    });
+  }
+
   bool get _isReceiptComplete {
     if (_receiptRows.isEmpty) return false;
 
     for (final row in _receiptRows) {
       if (row.decision == ReceiptDecision.none) return false;
-      if (row.decision == ReceiptDecision.accepted) {
-        final received = int.tryParse(row.receivedController.text.trim());
-        if (received == null || received < 0) return false;
+      if (_receivedAmountFromRow(row) == null) return false;
+      if (row.decision == ReceiptDecision.accepted &&
+          !row.receivedQuantityEdited) {
+        return false;
       }
     }
     return true;
   }
 
-  Future<void> _previewReceipt() async {
-    final order = _order;
-    if (order == null || !order.canEditReceipt || _isSavingReceipt) return;
+  String? get _receiptSaveHint {
+    if (_receiptRows.isEmpty) return null;
 
-    await openReceiptPreviewScreen(
-      context,
-      items: _buildReceiptPreviewItems(),
-      orderNumber: order.orderNumber,
+    for (final row in _receiptRows) {
+      if (row.decision == ReceiptDecision.none) {
+        return AppStrings.receiptItemsIncomplete;
+      }
+    }
+
+    for (final row in _receiptRows) {
+      if (row.decision == ReceiptDecision.accepted &&
+          !row.receivedQuantityEdited) {
+        return AppStrings.receiptQuantitiesRequired;
+      }
+    }
+
+    for (final row in _receiptRows) {
+      if (_receivedAmountFromRow(row) == null) {
+        return AppStrings.itemQuantityInvalid;
+      }
+    }
+
+    return null;
+  }
+
+  String? _receivedAmountFromRow(_ReceiptFormRow row) {
+    final validationError = validateQuantityInput(
+      row.receivedController.text,
+      allowZero: true,
     );
+    if (validationError != null) return null;
+
+    final receivedText = row.receivedController.text.trim();
+    if (receivedText == '0') return '0';
+    return formatAmountFor1C(receivedText);
   }
 
   Future<void> _saveReceipt() async {
@@ -135,7 +181,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
     if (!_isReceiptComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.receiptItemsIncomplete)),
+        SnackBar(
+          content: Text(_receiptSaveHint ?? AppStrings.receiptItemsIncomplete),
+        ),
       );
       return;
     }
@@ -145,59 +193,18 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
     final confirmed = await showConfirmActionDialog(
       context,
-      message: AppStrings.receiptSaveConfirm,
+      title: AppStrings.confirmSaveReceipt,
     );
     if (!confirmed) return;
 
     await _performSaveReceipt(order, items);
   }
 
-  List<ReceiptPreviewItem> _buildReceiptPreviewItems() {
-    final order = _order;
-    return _receiptRows.map((row) {
-      final status = switch (row.decision) {
-        ReceiptDecision.none => ReceiptItemPreviewStatus.pending,
-        ReceiptDecision.accepted => ReceiptItemPreviewStatus.accepted,
-        ReceiptDecision.rejected => ReceiptItemPreviewStatus.rejected,
-      };
-      final received = row.decision == ReceiptDecision.rejected
-          ? 0
-          : int.tryParse(row.receivedController.text.trim()) ??
-              row.item.shipped;
-      final displayName = order == null
-          ? (isPlaceholderReceiptName(row.item.name) ? '' : row.item.name)
-          : receiptItemDisplayName(
-              item: row.item,
-              orderItems: order.items,
-            ) ??
-              '';
-      return ReceiptPreviewItem(
-        name: displayName,
-        unit: row.item.unit,
-        ordered: row.item.ordered,
-        shipped: row.item.shipped,
-        status: status,
-        received: received,
-      );
-    }).toList();
-  }
-
   List<ReceiptOrderItemRequest>? _buildReceiptItems() {
     final items = <ReceiptOrderItemRequest>[];
     for (final row in _receiptRows) {
-      if (row.decision == ReceiptDecision.rejected) {
-        items.add(
-          ReceiptOrderItemRequest(
-            productId: row.item.id,
-            shipped: row.item.shipped,
-            received: 0,
-          ),
-        );
-        continue;
-      }
-
-      final received = int.tryParse(row.receivedController.text.trim());
-      if (received == null || received < 0) {
+      final received = _receivedAmountFromRow(row);
+      if (received == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${AppStrings.itemQuantityInvalid}: ${row.item.name}'),
@@ -358,7 +365,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    AppStrings.receiptItemsIncomplete,
+                    _receiptSaveHint ?? AppStrings.receiptItemsIncomplete,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
@@ -367,31 +374,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                 ),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: isSaving ? null : _previewReceipt,
-                      icon: const Icon(Icons.visibility_outlined, size: 18),
-                      label: const Text(
-                        AppStrings.previewReceipt,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(buttonHeight),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        foregroundColor: AppColors.turquoiseDark,
-                        side: const BorderSide(
-                          color: AppColors.turquoise,
-                          width: 1.5,
-                        ),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: borderRadius,
-                        ),
-                        textStyle: labelStyle,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: (isSaving || !canSave) ? null : _saveReceipt,
@@ -452,11 +434,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
         .where((item) => orderItemDisplayName(item.name) != null)
         .toList();
 
-    return RefreshIndicator(
-      onRefresh: _loadOrder,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+    return DismissKeyboard.onTap(
+      context,
+      RefreshIndicator(
+        onRefresh: _loadOrder,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -506,7 +491,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       ),
                     if (order.recipientWarehouse != null)
                       _ReadOnlyField(
-                        label: AppStrings.orderingFor,
+                        label: AppStrings.recipientWarehouse,
                         value: order.recipientWarehouse!,
                       ),
                     if (order.author != null && order.author!.isNotEmpty)
@@ -515,7 +500,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                         value: order.author!,
                       ),
                     _ReadOnlyField(
-                      label: AppStrings.deliveryDate,
+                      label: AppStrings.shipmentDate,
                       value: _deliveryDateLabel(order),
                     ),
                     _ReadOnlyField(
@@ -550,15 +535,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildReceiptTab(OrderRequest order, bool canEdit) {
     if (_receiptRows.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _loadOrder,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
+      return DismissKeyboard.onTap(
+        context,
+        RefreshIndicator(
+          onRefresh: _loadOrder,
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.35,
@@ -573,14 +562,18 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             ),
           ],
         ),
+      ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadOrder,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    return DismissKeyboard.onTap(
+      context,
+      RefreshIndicator(
+        onRefresh: _loadOrder,
+        child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           for (final row in _receiptRows)
             _ReceiptCard(
@@ -594,6 +587,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
             ),
         ],
       ),
+    ),
     );
   }
 }
@@ -605,6 +599,7 @@ class _ReceiptFormRow {
     required this.item,
     required this.decision,
     required this.receivedController,
+    this.receivedQuantityEdited = false,
   });
 
   factory _ReceiptFormRow.fromItem(
@@ -618,6 +613,7 @@ class _ReceiptFormRow {
     return _ReceiptFormRow(
       item: item,
       decision: decision,
+      receivedQuantityEdited: item.received > 0,
       receivedController: TextEditingController(
         text: item.received > 0
             ? item.received.toString()
@@ -636,6 +632,7 @@ class _ReceiptFormRow {
   final OrderReceiptItem item;
   ReceiptDecision decision;
   final TextEditingController receivedController;
+  bool receivedQuantityEdited;
 
   void dispose() {
     receivedController.dispose();
@@ -718,8 +715,12 @@ class _ReceiptCard extends StatelessWidget {
                     SizedBox(
                       height: 40,
                       child: TextFormField(
+                        key: ValueKey('${item.id}-${row.decision.name}'),
                         controller: row.receivedController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: const [QuantityInputFormatter()],
                         style: Theme.of(context).textTheme.bodyMedium,
                         decoration: InputDecoration(
                           labelText: AppStrings.receivedQuantity,
@@ -751,7 +752,10 @@ class _ReceiptCard extends StatelessWidget {
                                     : AppColors.success),
                           ),
                         ),
-                        onChanged: (_) => onChanged(),
+                        onChanged: (_) {
+                          row.receivedQuantityEdited = true;
+                          onChanged();
+                        },
                       ),
                     ),
                   ],
@@ -782,9 +786,12 @@ class _ReceiptCard extends StatelessWidget {
                 tooltip: AppStrings.acceptItem,
                 onPressed: () {
                   row.decision = ReceiptDecision.accepted;
-                  if (row.receivedController.text.trim().isEmpty) {
-                    row.receivedController.text = item.shipped.toString();
-                  }
+                  row.receivedQuantityEdited = false;
+                  final shipped = item.shipped.toString();
+                  row.receivedController.value = TextEditingValue(
+                    text: shipped,
+                    selection: TextSelection.collapsed(offset: shipped.length),
+                  );
                   onChanged();
                 },
               ),
@@ -796,9 +803,11 @@ class _ReceiptCard extends StatelessWidget {
                 tooltip: AppStrings.rejectItem,
                 onPressed: () {
                   row.decision = ReceiptDecision.rejected;
-                  if (row.receivedController.text.trim().isEmpty) {
-                    row.receivedController.text = '0';
-                  }
+                  row.receivedQuantityEdited = true;
+                  row.receivedController.value = const TextEditingValue(
+                    text: '0',
+                    selection: TextSelection.collapsed(offset: 1),
+                  );
                   onChanged();
                 },
               ),

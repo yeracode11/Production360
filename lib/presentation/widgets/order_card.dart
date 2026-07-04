@@ -13,10 +13,13 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate =
-        '${order.deliveryDate.day.toString().padLeft(2, '0')}.${order.deliveryDate.month.toString().padLeft(2, '0')}.${order.deliveryDate.year}';
+    final created = order.createdDate;
+    final createdDateLabel = order.createdDateDisplay ??
+        (created != null ? _formatDateTime(created, withSeconds: true) : '—');
+
+    final shipmentDate = order.deliveryDate;
     final shipmentDateLabel = order.deliveryDateDisplay ??
-        '$formattedDate ${order.deliveryDate.hour.toString().padLeft(2, '0')}:${order.deliveryDate.minute.toString().padLeft(2, '0')}';
+        _formatDateTime(shipmentDate, withSeconds: false);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -24,7 +27,10 @@ class OrderCard extends StatelessWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => OrderDetailsScreen(orderId: order.id),
+              builder: (_) => OrderDetailsScreen(
+                orderId: order.id,
+                initialTabIndex: order.canEditReceipt ? 1 : 0,
+              ),
             ),
           );
         },
@@ -50,7 +56,7 @@ class OrderCard extends StatelessWidget {
               const SizedBox(height: 12),
               _InfoRow(
                 label: AppStrings.deliveryDate,
-                value: formattedDate,
+                value: createdDateLabel,
               ),
               if (order.orderType != null) ...[
                 const SizedBox(height: 4),
@@ -79,6 +85,18 @@ class OrderCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatDateTime(DateTime date, {required bool withSeconds}) {
+  final datePart =
+      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  final timePart = withSeconds
+      ? '${date.hour.toString().padLeft(2, '0')}:'
+          '${date.minute.toString().padLeft(2, '0')}:'
+          '${date.second.toString().padLeft(2, '0')}'
+      : '${date.hour.toString().padLeft(2, '0')}:'
+          '${date.minute.toString().padLeft(2, '0')}';
+  return '$datePart $timePart';
 }
 
 class _StatusChip extends StatelessWidget {

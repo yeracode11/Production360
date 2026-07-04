@@ -6,6 +6,7 @@ import '../../../core/utils/order_item_display.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/amount_parser.dart';
+import '../../../core/utils/quantity_input.dart';
 import '../../../domain/entities/create_order_request.dart';
 import '../../../domain/entities/delivery_date_option.dart';
 import '../../../domain/entities/order_type.dart';
@@ -15,6 +16,9 @@ import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../bloc/orders/orders_cubit.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/order_create_preview_item.dart';
+import 'create_order_preview_screen.dart';
 
 class CreateOrderScreen extends StatefulWidget {
   const CreateOrderScreen({
@@ -94,6 +98,21 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   }
 
   Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final items = _collectOrderItems();
+    if (items == null) return;
+
+    final confirmed = await showConfirmActionDialog(
+      context,
+      title: AppStrings.confirmCreateOrder,
+    );
+    if (!confirmed) return;
+
+    await _performCreateOrder(items);
+  }
+
+  Future<void> _previewOrder() async {
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppStrings.deliveryDateRequired)),
@@ -102,6 +121,40 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     }
 
     if (!_formKey.currentState!.validate()) return;
+
+    final items = _collectOrderItems();
+    if (items == null) return;
+
+    final typeData = _typeData!;
+    final previewItems = _buildPreviewItems(items);
+
+    final shouldCreate = await openCreateOrderPreviewScreen(
+      context,
+      data: CreateOrderPreviewData(
+        warehouseName: widget.warehouse.name,
+        orderTypeName: typeData.name,
+        organizationName: typeData.organizationName,
+        supplierWarehouseName: typeData.warehouseName,
+        deliveryDate: _selectedDate!.display,
+        comment: _commentController.text.trim().isEmpty
+            ? null
+            : _commentController.text.trim(),
+        items: previewItems,
+      ),
+    );
+
+    if (shouldCreate == true && mounted) {
+      await _submit();
+    }
+  }
+
+  List<CreateOrderItemRequest>? _collectOrderItems() {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(AppStrings.deliveryDateRequired)),
+      );
+      return null;
+    }
 
     final items = <CreateOrderItemRequest>[];
     for (final row in _productRows) {
@@ -119,16 +172,31 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppStrings.atLeastOneItem)),
       );
-      return;
+      return null;
     }
 
-    final confirmed = await showConfirmActionDialog(
-      context,
-      message: AppStrings.confirmCreateOrder,
-    );
-    if (!confirmed) return;
+    return items;
+  }
 
-    await _performCreateOrder(items);
+  List<OrderCreatePreviewItem> _buildPreviewItems(
+    List<CreateOrderItemRequest> items,
+  ) {
+    final previewItems = <OrderCreatePreviewItem>[];
+    for (final item in items) {
+      final row = _productRows.firstWhere(
+        (r) => r.product.id == item.productId,
+      );
+      final product = row.product;
+      previewItems.add(
+        OrderCreatePreviewItem(
+          name: product.name,
+          code: product.code,
+          quantity: item.amount,
+          unit: product.unit,
+        ),
+      );
+    }
+    return previewItems;
   }
 
   Future<void> _performCreateOrder(List<CreateOrderItemRequest> items) async {
@@ -217,11 +285,15 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       child: Column(
         children: [
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadTypeData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+            child: DismissKeyboard.onTap(
+              context,
+              RefreshIndicator(
+                onRefresh: _loadTypeData,
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -325,26 +397,74 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
               ),
             ),
+            ),
           ),
           SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _submit,
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(AppStrings.createOrder),
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : _previewOrder,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        foregroundColor: AppColors.turquoiseDark,
+                        side: const BorderSide(
+                          color: AppColors.turquoise,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text(
+                        AppStrings.previewReceipt,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        backgroundColor: AppColors.turquoiseDark,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              AppStrings.createOrderAction,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -428,14 +548,8 @@ class _ProductCard extends StatelessWidget {
                 hintText: product.unit,
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                final amount = parseAmount(v);
-                if (amount == null || amount <= 0) {
-                  return AppStrings.itemQuantityInvalid;
-                }
-                return null;
-              },
+              inputFormatters: const [QuantityInputFormatter()],
+              validator: (v) => validateQuantityInput(v),
             ),
           ],
         ),

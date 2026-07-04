@@ -6,4 +6,9 @@ abstract final class OneCConfig {
   static const String orderTypesPath = '/mobile/zayavka/types';
   static const String orderTypeDataPath = '/mobile/zayavka/type/data';
   static const String ordersPath = '/mobile/zayavka';
+  static const String internalTransferPath = '/mobile/internaltransfer';
+  static const String internalTransferPredataPath =
+      '/mobile/internaltransfer/predata';
+  static const String internalTransferCreatePath =
+      '/mobile/internaltransfer/create';
 }

@@ -1,248 +1,184 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
-import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/exception_message.dart';
-import '../../../core/utils/order_item_display.dart';
-import '../../../domain/entities/order_type_product.dart';
-import '../../../domain/repositories/catalog_repository.dart';
+import '../../../core/utils/week_range.dart';
+import '../../bloc/transfers/transfers_cubit.dart';
+import '../../bloc/transfers/transfers_state.dart';
+import '../../bloc/warehouse/warehouse_cubit.dart';
+import '../../bloc/warehouse/warehouse_state.dart';
+import '../../widgets/completed_week_filter.dart';
+import '../../widgets/transfer_card.dart';
 
-class TransfersScreen extends StatefulWidget {
+class TransfersScreen extends StatelessWidget {
   const TransfersScreen({super.key});
 
-  @override
-  State<TransfersScreen> createState() => _TransfersScreenState();
-}
+  Future<void> _onRefresh(BuildContext context) async {
+    final warehouseCubit = context.read<WarehouseCubit>();
+    final transfersCubit = context.read<TransfersCubit>();
 
-class _TransfersScreenState extends State<TransfersScreen> {
-  final _searchController = TextEditingController();
-  Timer? _debounce;
-
-  List<OrderTypeProduct> _results = [];
-  bool _isSearching = false;
-  String? _error;
-  String _lastQuery = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(() {
-      if (_searchController.text.isEmpty && _results.isNotEmpty) {
-        setState(() {
-          _results = [];
-          _error = null;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _onSearchChanged(String value) {
-    setState(() {});
-    _debounce?.cancel();
-    final query = value.trim();
-
-    if (query.isEmpty) {
-      setState(() {
-        _results = [];
-        _error = null;
-        _isSearching = false;
-        _lastQuery = '';
-      });
-      return;
+    await warehouseCubit.refreshFromApi();
+    final warehouseState = warehouseCubit.state;
+    if (warehouseState is WarehouseLoaded) {
+      await transfersCubit.refreshTransfers(warehouseState.selectedWarehouse.id);
     }
-
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _runSearch(query);
-    });
-  }
-
-  Future<void> _runSearch(String query) async {
-    setState(() {
-      _isSearching = true;
-      _error = null;
-      _lastQuery = query;
-    });
-
-    try {
-      final results = await sl<CatalogRepository>().searchNomenclature(query);
-      if (!mounted || _lastQuery != query) return;
-      setState(() {
-        _results = results;
-        _isSearching = false;
-      });
-    } catch (e) {
-      if (!mounted || _lastQuery != query) return;
-      setState(() {
-        _error = exceptionMessage(e);
-        _results = [];
-        _isSearching = false;
-      });
-    }
-  }
-
-  void _clearSearch() {
-    _debounce?.cancel();
-    _searchController.clear();
-    setState(() {
-      _results = [];
-      _error = null;
-      _isSearching = false;
-      _lastQuery = '';
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Material(
-          color: AppColors.cream,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              textInputAction: TextInputAction.search,
-              onSubmitted: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: AppStrings.nomenclatureSearchHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearSearch,
-                        tooltip: AppStrings.clearSearch,
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+    return BlocListener<WarehouseCubit, WarehouseState>(
+      listenWhen: (previous, current) {
+        if (current is! WarehouseLoaded) return false;
+        if (previous is! WarehouseLoaded) return true;
+        return previous.selectedWarehouse.id != current.selectedWarehouse.id;
+      },
+      listener: (context, state) {
+        if (state is WarehouseLoaded) {
+          context.read<TransfersCubit>().loadTransfers(state.selectedWarehouse.id);
+        }
+      },
+      child: BlocBuilder<WarehouseCubit, WarehouseState>(
+        builder: (context, warehouseState) {
+          if (warehouseState is WarehouseEmpty) {
+            return RefreshIndicator(
+              onRefresh: () => _onRefresh(context),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.4,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          AppStrings.noWarehouses,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: AppColors.deepBrownLight,
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (warehouseState is! WarehouseLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final warehouseId = warehouseState.selectedWarehouse.id;
+
+          return BlocBuilder<TransfersCubit, TransfersState>(
+            builder: (context, state) {
+              if (state is TransfersInitial) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  context.read<TransfersCubit>().loadTransfers(warehouseId);
+                });
+              }
+
+              final week = state is TransfersLoaded
+                  ? WeekRange(start: state.weekStart, end: state.weekEnd)
+                  : WeekRange.current();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CompletedWeekFilter(
+                    weekStart: week.start,
+                    weekEnd: week.end,
+                    onWeekSelected: (date) {
+                      context.read<TransfersCubit>().setWeekFromDate(
+                            date,
+                            warehouseId,
+                          );
+                    },
+                  ),
+                  if (state is TransfersLoading)
+                    const LinearProgressIndicator(minHeight: 2),
+                  Expanded(child: _buildBody(context, state)),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, TransfersState state) {
+    if (state is TransfersLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state is TransfersFailure) {
+      return RefreshIndicator(
+        onRefresh: () => _onRefresh(context),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.35,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.error),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-        if (_isSearching)
-          const LinearProgressIndicator(minHeight: 2),
-        Expanded(child: _buildBody(context)),
-      ],
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            _error!,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.error),
-          ),
-        ),
-      );
-    }
-
-    if (_searchController.text.trim().isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.swap_horiz, size: 56, color: AppColors.deepBrownLight),
-              const SizedBox(height: 16),
-              Text(
-                AppStrings.transfersSearchPrompt,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (!_isSearching && _results.isEmpty) {
-      return Center(
-        child: Text(
-          AppStrings.nomenclatureNoResults,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: _results.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        return _NomenclatureSearchTile(product: _results[index]);
-      },
-    );
-  }
-}
-
-class _NomenclatureSearchTile extends StatelessWidget {
-  const _NomenclatureSearchTile({required this.product});
-
-  final OrderTypeProduct product;
-
-  @override
-  Widget build(BuildContext context) {
-    final codeLabel = productCodeDisplayLabel(product.code);
-
-    return Card(
-      child: ListTile(
-        title: Text(
-          product.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (codeLabel != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                codeLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ],
-            if (product.unit.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                product.unit,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ],
           ],
         ),
-        isThreeLine: codeLabel != null && product.unit.isNotEmpty,
+      );
+    }
+
+    if (state is! TransfersLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final transfers = state.transfersForWeek;
+
+    if (transfers.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _onRefresh(context),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.35,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    AppStrings.noTransfersForWeek,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(context),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 80),
+        itemCount: transfers.length,
+        itemBuilder: (context, index) {
+          return TransferCard(transfer: transfers[index]);
+        },
       ),
     );
   }

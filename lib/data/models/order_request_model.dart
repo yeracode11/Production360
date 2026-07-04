@@ -47,6 +47,9 @@ class OrderRequestModel extends OrderRequest {
       status: statusFrom1C(json['СтатусЗаказа'] as String),
       orderType: json['ВидЗаказа'] as String?,
       statusLabel: json['СтатусЗаказа'] as String?,
+      createdDateDisplay: json['Дата'] != null
+          ? (json['Дата'] as String).trim()
+          : null,
       deliveryDateDisplay: _formatListShipmentDate(json['ДатаОтгрузки'] as String),
       items: const [],
     );

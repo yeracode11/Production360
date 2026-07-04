@@ -40,6 +40,7 @@ abstract final class AppStrings {
 
   // Create order
   static const String createOrder = 'Создать заказ';
+  static const String createOrderAction = 'Создать';
   static const String createOrderTitle = 'Новый заказ';
   static const String selectOrderType = 'Выберите вид заказа';
   static const String selectOrderTypeHint =
@@ -70,6 +71,10 @@ abstract final class AppStrings {
   static const String itemNameRequired = 'Введите название';
   static const String itemQuantityRequired = 'Введите количество';
   static const String itemQuantityInvalid = 'Некорректное количество';
+  static const String itemQuantityIntegerInvalid =
+      'До запятой допускается не более 11 цифр';
+  static const String itemQuantityFractionInvalid =
+      'После запятой допускается не более 3 цифр';
   static const String orderCreated = 'Заказ создан';
 
   // Order details
@@ -79,7 +84,7 @@ abstract final class AppStrings {
   static const String orderNumber = 'Номер заказа';
   static const String customer = 'Заказчик';
   static const String supplier = 'Поставщик';
-  static const String deliveryDate = 'Дата создание';
+  static const String deliveryDate = 'Дата создания';
   static const String shipmentDate = 'Дата отгрузки';
   static const String comment = 'Комментарий';
   static const String noComment = 'Комментарий не указан';
@@ -101,10 +106,13 @@ abstract final class AppStrings {
   static const String saveReceipt = 'Сохранить приёмку';
   static const String saveReceiptAction = 'Сохранить';
   static const String previewReceipt = 'Предпросмотр';
+  static const String createOrderPreviewTitle = 'Предпросмотр заказа';
   static const String close = 'Закрыть';
   static const String receiptSaved = 'Приёмка сохранена';
   static const String receiptItemsIncomplete =
       'Отметьте все позиции: принять или отклонить';
+  static const String receiptQuantitiesRequired =
+      'Укажите полученное количество для принятых позиций';
   static const String acceptItem = 'Принять';
   static const String rejectItem = 'Отклонить';
   static const String createdDate = 'Дата создания';
@@ -117,12 +125,11 @@ abstract final class AppStrings {
   static const String confirmCreateOrder =
       'Вы уверены, что хотите создать заказ?';
   static const String confirmSaveReceipt =
-      'Вы уверены, что хотите завершить приёмку?';
+      'Вы уверены, что хотите сохранить приёмку?';
   static const String receiptPreviewTitle = 'Предпросмотр приёмки';
   static const String receiptPreviewAccepted = 'Принято';
   static const String receiptPreviewRejected = 'Отклонено';
   static const String receiptPreviewPending = 'Не обработано';
-  static const String receiptSaveConfirm = 'Сохранить приёмку по заказу?';
 
   // Force update
   static const String forceUpdateTitle = 'Требуется обновление';
@@ -132,12 +139,38 @@ abstract final class AppStrings {
 
   // Placeholder screens
   static const String transfersPlaceholder = 'Перемещение товаров';
+  static const String transfersComingSoon = 'Раздел временно недоступен';
   static const String inventoryPlaceholder = 'Инвентаризация склада';
 
-  // Nomenclature search (transfers)
+  // Transfers
+  static const String createTransfer = 'Создать перемещение';
+  static const String createTransferTitle = 'Новое перемещение';
+  static const String transferDetailsTitle = 'Детали перемещения';
+  static const String transferNumber = 'Перемещение №';
+  static const String noTransfers =
+      'Нет перемещений за выбранную дату';
+  static const String noTransfersForWeek =
+      'Нет перемещений в выбранном периоде. Выберите другую дату в календаре выше.';
+  static const String transferCreated = 'Перемещение создано';
+  static const String confirmCreateTransfer =
+      'Вы уверены, что хотите создать перемещение?';
+  static const String recipientWarehouse = 'Склад получатель';
+  static const String transferPosted = 'Проведён';
+  static const String transferNotPosted = 'Не проведён';
+  static const String selectRecipientWarehouse = 'Выберите склад получатель';
+  static const String noRecipientWarehouses = 'Нет доступных складов получателей';
+  static const String transferItems = 'Товары';
+  static const String addProduct = 'Добавить товар';
+  static const String transferNotFound = 'Документ перемещения не найден';
+  static const String noTransferItems = 'Нет позиций в документе';
+
+  // Nomenclature search (transfers create)
   static const String nomenclatureSearchHint = 'Поиск номенклатуры';
   static const String transfersSearchPrompt =
       'Найдите товар по названию, коду или артикулу';
   static const String nomenclatureNoResults = 'Ничего не найдено';
+  static const String searchResultsFound = 'Найдено';
+  static const String productAdded = 'Добавлено';
+  static const String tapToAdd = 'Добавить';
   static const String clearSearch = 'Очистить';
 }

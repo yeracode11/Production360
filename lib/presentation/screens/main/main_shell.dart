@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/config/app_features.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../bloc/auth/auth_bloc.dart';
@@ -11,6 +12,8 @@ import '../../widgets/app_header.dart';
 import '../inventory/inventory_screen.dart';
 import '../orders/select_order_type_screen.dart';
 import '../orders/orders_screen.dart';
+import '../transfers/create_transfer_screen.dart';
+import '../transfers/transfers_placeholder_screen.dart';
 import '../transfers/transfers_screen.dart';
 import '../../bloc/warehouse/warehouse_state.dart';
 
@@ -31,16 +34,28 @@ class _MainShellState extends State<MainShell> {
     AppStrings.inventory,
   ];
 
-  final _screens = const [
-    OrdersScreen(),
-    TransfersScreen(),
-    InventoryScreen(),
+  final _screens = [
+    const OrdersScreen(),
+    AppFeatures.transfersEnabled
+        ? const TransfersScreen()
+        : const TransfersPlaceholderScreen(),
+    const InventoryScreen(),
   ];
 
   void _openCreateOrder(WarehouseLoaded warehouseState) {
     Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => SelectOrderTypeScreen(
+          warehouse: warehouseState.selectedWarehouse,
+        ),
+      ),
+    );
+  }
+
+  void _openCreateTransfer(WarehouseLoaded warehouseState) {
+    Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateTransferScreen(
           warehouse: warehouseState.selectedWarehouse,
         ),
       ),
@@ -102,7 +117,20 @@ class _MainShellState extends State<MainShell> {
                 );
               },
             )
-          : null,
+          : _currentIndex == 1 && AppFeatures.transfersEnabled
+              ? BlocBuilder<WarehouseCubit, WarehouseState>(
+                  builder: (context, state) {
+                    if (state is! WarehouseLoaded) {
+                      return const SizedBox.shrink();
+                    }
+                    return FloatingActionButton.extended(
+                      onPressed: () => _openCreateTransfer(state),
+                      icon: const Icon(Icons.add),
+                      label: const Text(AppStrings.createTransfer),
+                    );
+                  },
+                )
+              : null,
     );
   }
 }

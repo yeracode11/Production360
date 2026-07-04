@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_api_token
+from app.config import settings
 from app.database import get_db
 from app.schemas.catalog import ProductListResponse, ProductOut, SyncResult, UnitOut
 from app.services.catalog import (
@@ -21,6 +22,12 @@ router = APIRouter(tags=["catalog"])
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/app/version")
+async def app_version() -> dict[str, str]:
+    """Минимальная версия мобильного приложения для force update."""
+    return {"min_version": settings.min_app_version}
 
 
 @router.get("/units", response_model=list[UnitOut], dependencies=[Depends(require_api_token)])

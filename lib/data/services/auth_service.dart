@@ -67,7 +67,7 @@ class AuthService {
       return 'Сервер 1С не отвечает. Проверьте подключение';
     }
     if (e.type == DioExceptionType.connectionError) {
-      return 'Не удалось подключиться к серверу 1С';
+      return 'Не удалось подключиться к серверу';
     }
     final body = e.response?.data;
     if (body is String && body.isNotEmpty) {

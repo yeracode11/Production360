@@ -5,7 +5,7 @@ import 'package:dio/dio.dart';
 import '../../domain/services/force_update_notifier.dart';
 import 'app_version_provider.dart';
 
-/// Добавляет `X-App-Version` и реагирует на 426 / `version_restricted` от 1С.
+/// Добавляет `X-App-Version` и реагирует на ответ 1С о необходимости обновления.
 class ForceUpdateInterceptor extends Interceptor {
   ForceUpdateInterceptor({
     required AppVersionProvider versionProvider,
@@ -61,28 +61,89 @@ class ForceUpdateInterceptor extends Interceptor {
   }
 
   bool _containsVersionRestrictedError(dynamic data) {
+    final maps = _collectMaps(data);
+    for (final map in maps) {
+      if (_mapRequiresUpdate(map)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<Map<String, dynamic>> _collectMaps(dynamic data) {
     if (data is Map) {
-      return _errorValue(data['error']) == versionRestrictedError;
+      final map = Map<String, dynamic>.from(data);
+      return [map];
     }
 
     if (data is String && data.isNotEmpty) {
       try {
         final decoded = jsonDecode(data);
         if (decoded is Map) {
-          return _errorValue(decoded['error']) == versionRestrictedError;
+          return [Map<String, dynamic>.from(decoded)];
         }
       } on FormatException {
-        return false;
+        return const [];
+      }
+    }
+
+    return const [];
+  }
+
+  bool _mapRequiresUpdate(Map<String, dynamic> map) {
+    if (_isVersionRestrictedValue(map['error'])) {
+      return true;
+    }
+
+    for (final key in ['error_code', 'errorCode', 'code']) {
+      if (_isVersionRestrictedValue(map[key])) {
+        return true;
+      }
+    }
+
+    for (final key in ['error_text', 'errorText', 'message', 'detail']) {
+      if (_textRequiresUpdate(map[key])) {
+        return true;
+      }
+    }
+
+    if (map['error'] == true &&
+        (_textRequiresUpdate(map['error_text']) ||
+            _textRequiresUpdate(map['errorText']))) {
+      return true;
+    }
+
+    for (final key in [
+      'update_required',
+      'updateRequired',
+      'ТребуетсяОбновление',
+    ]) {
+      final value = map[key];
+      if (value == true || value == 1 || value?.toString() == 'true') {
+        return true;
       }
     }
 
     return false;
   }
 
-  String? _errorValue(dynamic value) {
+  bool _isVersionRestrictedValue(dynamic value) {
     if (value == null) {
-      return null;
+      return false;
     }
-    return value.toString();
+    return value.toString().trim().toLowerCase() == versionRestrictedError;
+  }
+
+  bool _textRequiresUpdate(dynamic value) {
+    if (value == null) {
+      return false;
+    }
+    final text = value.toString().trim().toLowerCase();
+    if (text.isEmpty) {
+      return false;
+    }
+    return text.contains(versionRestrictedError) ||
+        text.contains('обновлен') ||
+        text.contains('update required');
   }
 }

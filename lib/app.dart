@@ -6,19 +6,23 @@ import 'core/constants/app_strings.dart';
 import 'core/di/injection.dart';
 import 'core/storage/selected_warehouse_storage.dart';
 import 'core/theme/app_theme.dart';
+import 'data/services/app_version_check_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/order_repository.dart';
+import 'domain/repositories/transfer_repository.dart';
 import 'domain/services/force_update_notifier.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/auth/auth_state.dart';
 import 'presentation/bloc/orders/orders_cubit.dart';
+import 'presentation/bloc/transfers/transfers_cubit.dart';
 import 'presentation/bloc/update/update_cubit.dart';
 import 'presentation/bloc/update/update_state.dart';
 import 'presentation/bloc/warehouse/warehouse_cubit.dart';
 import 'presentation/screens/force_update/force_update_screen.dart';
 import 'presentation/screens/login/login_screen.dart';
 import 'presentation/screens/main/main_shell.dart';
+import 'presentation/widgets/dismiss_keyboard.dart';
 
 class ConfectioneryApp extends StatelessWidget {
   const ConfectioneryApp({super.key});
@@ -30,6 +34,7 @@ class ConfectioneryApp extends StatelessWidget {
         BlocProvider(
           create: (_) => UpdateCubit(
             forceUpdateNotifier: sl<ForceUpdateNotifier>(),
+            versionCheckService: sl<AppVersionCheckService>(),
           ),
         ),
         BlocProvider(
@@ -45,6 +50,12 @@ class ConfectioneryApp extends StatelessWidget {
         BlocProvider(
           create: (context) => OrdersCubit(
             orderRepository: sl<OrderRepository>(),
+            warehouseCubit: context.read<WarehouseCubit>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => TransfersCubit(
+            transferRepository: sl<TransferRepository>(),
             warehouseCubit: context.read<WarehouseCubit>(),
           ),
         ),
@@ -69,6 +80,11 @@ class ConfectioneryApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          builder: (context, child) {
+            return DismissKeyboard(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           home: const _AppRoot(),
         ),
       ),
@@ -77,8 +93,32 @@ class ConfectioneryApp extends StatelessWidget {
 }
 
 /// Корневой виджет: force update блокирует всё остальное.
-class _AppRoot extends StatelessWidget {
+class _AppRoot extends StatefulWidget {
   const _AppRoot();
+
+  @override
+  State<_AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<_AppRoot> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<UpdateCubit>().recheckVersion();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

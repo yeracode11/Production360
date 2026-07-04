@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppVersionProvider {
   /// Fallback при hot restart, когда нативный плагин ещё не зарегистрирован.
   /// Должен совпадать с `version` в pubspec.yaml.
-  static const String fallbackVersion = '1.0.0';
+  static const String fallbackVersion = '1.0.1';
 
   String? _cachedVersion;
 

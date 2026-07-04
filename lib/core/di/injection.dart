@@ -6,10 +6,13 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/catalog_repository_impl.dart';
 import '../../data/repositories/order_repository_impl.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/app_version_check_service.dart';
 import '../../data/services/force_update_notifier_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../../domain/repositories/order_repository.dart';
+import '../../data/repositories/transfer_repository_impl.dart';
+import '../../domain/repositories/transfer_repository.dart';
 import '../../domain/services/force_update_notifier.dart';
 import '../network/app_version_provider.dart';
 import '../network/dio_client.dart';
@@ -30,9 +33,16 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton<ForceUpdateNotifier>(
     () => ForceUpdateNotifierImpl(),
   );
+  sl.registerLazySingleton<AppVersionCheckService>(
+    () => AppVersionCheckService(
+      versionProvider: sl<AppVersionProvider>(),
+      forceUpdateNotifier: sl<ForceUpdateNotifier>(),
+    ),
+  );
 
   // Кэшируем версию до первого HTTP-запроса.
   await sl<AppVersionProvider>().getVersion();
+  await sl<AppVersionCheckService>().checkMinVersion();
 
   sl.registerLazySingleton<DioClient>(
     () => DioClient(
@@ -53,6 +63,9 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<OrderRepository>(
     () => OrderRepositoryImpl(dioClient: sl<DioClient>()),
+  );
+  sl.registerLazySingleton<TransferRepository>(
+    () => TransferRepositoryImpl(dioClient: sl<DioClient>()),
   );
 
   sl.registerLazySingleton<Dio>(
