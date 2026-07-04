@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     api_bearer_token: str = ""
     min_app_version: str = "1.0.1"
+    min_app_version_ios: str = "1.0.1"
+    min_app_version_android: str = "1.0.1"
 
     @field_validator("api_bearer_token", mode="before")
     @classmethod

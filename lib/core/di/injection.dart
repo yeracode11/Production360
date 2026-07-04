@@ -42,7 +42,6 @@ Future<void> configureDependencies() async {
 
   // Кэшируем версию до первого HTTP-запроса.
   await sl<AppVersionProvider>().getVersion();
-  await sl<AppVersionCheckService>().checkMinVersion();
 
   sl.registerLazySingleton<DioClient>(
     () => DioClient(

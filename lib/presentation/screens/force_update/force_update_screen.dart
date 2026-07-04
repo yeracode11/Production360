@@ -10,20 +10,49 @@ import '../../../core/theme/app_colors.dart';
 class ForceUpdateScreen extends StatelessWidget {
   const ForceUpdateScreen({super.key});
 
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  Future<void> _openStore(BuildContext context) async {
+    final urls = Platform.isIOS
+        ? [
+            AppUpdateConfig.iosAppStoreDeepLink,
+            AppUpdateConfig.iosAppStoreUrl,
+            AppUpdateConfig.iosAppStoreSearchUrl,
+          ]
+        : [
+            AppUpdateConfig.androidMarketUrl,
+            AppUpdateConfig.androidPlayStoreUrl,
+          ];
 
-  Future<void> _openStore() => _launchUrl(_storeUrl);
-
-  String get _storeUrl {
-    if (Platform.isIOS) {
-      return AppUpdateConfig.iosAppStoreUrl;
+    for (final url in urls) {
+      final uri = Uri.parse(url);
+      try {
+        final opened = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (opened) {
+          return;
+        }
+      } catch (_) {
+        continue;
+      }
     }
-    return AppUpdateConfig.androidPlayStoreUrl;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Platform.isIOS
+                ? AppUpdateConfig.iosAppStoreUrl
+                : AppUpdateConfig.androidPlayStoreUrl,
+          ),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: AppStrings.close,
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -60,7 +89,7 @@ class ForceUpdateScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _openStore,
+                    onPressed: () => _openStore(context),
                     child: const Text(AppStrings.forceUpdateButton),
                   ),
                 ),

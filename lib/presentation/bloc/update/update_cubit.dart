@@ -16,11 +16,22 @@ class UpdateCubit extends Cubit<UpdateState> {
     _subscription = _forceUpdateNotifier.onForceUpdateRequired.listen(
       (_) => requireUpdate(),
     );
+    if (_forceUpdateNotifier.isUpdateRequired) {
+      requireUpdate();
+    }
+    unawaited(_runInitialVersionCheck());
   }
 
   final ForceUpdateNotifier _forceUpdateNotifier;
   final AppVersionCheckService _versionCheckService;
   late final StreamSubscription<void> _subscription;
+
+  Future<void> _runInitialVersionCheck() async {
+    await _versionCheckService.checkMinVersion();
+    if (_forceUpdateNotifier.isUpdateRequired) {
+      requireUpdate();
+    }
+  }
 
   Future<void> recheckVersion() => _versionCheckService.checkMinVersion();
 

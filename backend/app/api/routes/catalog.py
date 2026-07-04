@@ -26,8 +26,12 @@ async def health() -> dict[str, str]:
 
 @router.get("/app/version")
 async def app_version() -> dict[str, str]:
-    """Минимальная версия мобильного приложения для force update."""
-    return {"min_version": settings.min_app_version}
+    """Минимальные версии мобильного приложения для force update."""
+    return {
+        "min_version": settings.min_app_version,
+        "min_version_ios": settings.min_app_version_ios,
+        "min_version_android": settings.min_app_version_android,
+    }
 
 
 @router.get("/units", response_model=list[UnitOut], dependencies=[Depends(require_api_token)])
