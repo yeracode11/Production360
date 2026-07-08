@@ -11,4 +11,9 @@ abstract final class OneCConfig {
       '/mobile/internaltransfer/predata';
   static const String internalTransferCreatePath =
       '/mobile/internaltransfer/create';
+  static const String stockWriteoffPath = '/mobile/spisaniyezapasov';
+  static const String stockWriteoffPredataPath =
+      '/mobile/spisaniyezapasov/predata';
+  static const String stockWriteoffCreatePath =
+      '/mobile/spisaniyezapasov/create';
 }

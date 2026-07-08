@@ -12,7 +12,9 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../../data/repositories/transfer_repository_impl.dart';
+import '../../data/repositories/writeoff_repository_impl.dart';
 import '../../domain/repositories/transfer_repository.dart';
+import '../../domain/repositories/writeoff_repository.dart';
 import '../../domain/services/force_update_notifier.dart';
 import '../network/app_version_provider.dart';
 import '../network/dio_client.dart';
@@ -65,6 +67,9 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<TransferRepository>(
     () => TransferRepositoryImpl(dioClient: sl<DioClient>()),
+  );
+  sl.registerLazySingleton<WriteoffRepository>(
+    () => WriteoffRepositoryImpl(dioClient: sl<DioClient>()),
   );
 
   sl.registerLazySingleton<Dio>(

@@ -49,7 +49,10 @@ async def get_units(
     dependencies=[Depends(require_api_token)],
 )
 async def search_nomenclature(
-    q: str = Query(..., min_length=1, description="Поиск по названию, коду, артикулу"),
+    q: str | None = Query(
+        default=None,
+        description="Поиск по названию, коду, артикулу. Без q — список батчами",
+    ),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db),

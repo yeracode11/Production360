@@ -159,6 +159,8 @@ abstract final class AppStrings {
   static const String transferNotPosted = 'Не проведён';
   static const String selectRecipientWarehouse = 'Выберите склад получатель';
   static const String noRecipientWarehouses = 'Нет доступных складов получателей';
+  static const String searchWarehouseHint = 'Поиск склада';
+  static const String warehousesNotFound = 'Склады не найдены';
   static const String transferItems = 'Товары';
   static const String addProduct = 'Добавить товар';
   static const String transferNotFound = 'Документ перемещения не найден';
@@ -168,8 +170,35 @@ abstract final class AppStrings {
   static const String nomenclatureSearchHint = 'Поиск номенклатуры';
   static const String transfersSearchPrompt =
       'Найдите товар по названию, коду или артикулу';
+
+  // Write-offs (списание запасов)
+  static const String writeoffs = 'Списание';
+  static const String createWriteoff = 'Создать списание';
+  static const String createWriteoffTitle = 'Новое списание';
+  static const String writeoffDetailsTitle = 'Детали списания';
+  static const String writeoffNumber = 'Списание №';
+  static const String noWriteoffsForWeek =
+      'Нет списаний в выбранном периоде. Выберите другую дату в календаре выше.';
+  static const String writeoffCreated = 'Списание создано';
+  static const String confirmCreateWriteoff =
+      'Вы уверены, что хотите создать списание?';
+  static const String writeoffPosted = 'Проведён';
+  static const String writeoffNotPosted = 'Не проведён';
+  static const String writeoffItems = 'Товары';
+  static const String writeoffNotFound = 'Документ списания не найден';
+  static const String noWriteoffItems = 'Нет позиций в документе';
+  static const String writeoffsSearchPrompt =
+      'Найдите товар по названию, коду или артикулу';
+  static const String writeoffReason = 'Причина списания';
+  static const String selectWriteoffReason = 'Выберите причину списания';
+  static const String noWriteoffReasons = 'Нет доступных причин списания';
+  static const String searchWriteoffReasonHint = 'Поиск причины';
+  static const String writeoffReasonsNotFound = 'Причины не найдены';
   static const String nomenclatureNoResults = 'Ничего не найдено';
   static const String searchResultsFound = 'Найдено';
+  static const String nomenclatureShown = 'Показано';
+  static const String nomenclatureOf = 'из';
+  static const String loadMoreNomenclature = 'Показать ещё';
   static const String productAdded = 'Добавлено';
   static const String tapToAdd = 'Добавить';
   static const String clearSearch = 'Очистить';

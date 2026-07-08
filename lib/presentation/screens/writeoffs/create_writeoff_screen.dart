@@ -8,33 +8,33 @@ import '../../../core/utils/amount_parser.dart';
 import '../../../core/utils/quantity_input.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
-import '../../../domain/entities/create_transfer_request.dart';
+import '../../../domain/entities/create_writeoff_request.dart';
 import '../../../domain/entities/order_type_product.dart';
-import '../../../domain/entities/transfer_predata.dart';
+import '../../../domain/entities/writeoff_predata.dart';
 import '../../../domain/entities/warehouse.dart';
-import '../../../domain/repositories/transfer_repository.dart';
-import '../../bloc/transfers/transfers_cubit.dart';
+import '../../../domain/repositories/writeoff_repository.dart';
+import '../../bloc/writeoffs/writeoffs_cubit.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import '../../widgets/nomenclature_picker.dart';
-import 'select_recipient_warehouse_screen.dart';
+import 'select_writeoff_reason_screen.dart';
 
-class CreateTransferScreen extends StatefulWidget {
-  const CreateTransferScreen({super.key, required this.warehouse});
+class CreateWriteoffScreen extends StatefulWidget {
+  const CreateWriteoffScreen({super.key, required this.warehouse});
 
   final Warehouse warehouse;
 
   @override
-  State<CreateTransferScreen> createState() => _CreateTransferScreenState();
+  State<CreateWriteoffScreen> createState() => _CreateWriteoffScreenState();
 }
 
-class _CreateTransferScreenState extends State<CreateTransferScreen> {
+class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
 
-  TransferPredata? _predata;
-  TransferWarehouseOption? _selectedRecipient;
-  final List<_TransferLineRow> _lines = [];
+  WriteoffPredata? _predata;
+  WriteoffReasonOption? _selectedReason;
+  final List<_WriteoffLineRow> _lines = [];
   bool _isLoading = true;
   bool _isSaving = false;
   String? _loadError;
@@ -61,15 +61,13 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     });
 
     try {
-      final predata = await sl<TransferRepository>().fetchPredata(
+      final predata = await sl<WriteoffRepository>().fetchPredata(
         warehouseId: widget.warehouse.id,
       );
       if (!mounted) return;
       setState(() {
         _predata = predata;
-        _selectedRecipient = predata.availableWarehouses.isNotEmpty
-            ? predata.availableWarehouses.first
-            : null;
+        _selectedReason = null;
         _isLoading = false;
       });
     } catch (e) {
@@ -90,14 +88,14 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
       setState(() {});
     } else {
       setState(() {
-        final row = _TransferLineRow(product: product);
+        final row = _WriteoffLineRow(product: product);
         row.quantityController.text = '1';
         _lines.add(row);
       });
     }
   }
 
-  void _removeLine(_TransferLineRow row) {
+  void _removeLine(_WriteoffLineRow row) {
     setState(() {
       row.dispose();
       _lines.remove(row);
@@ -105,21 +103,21 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   }
 
   Future<void> _submit() async {
-    if (_selectedRecipient == null) {
+    if (_selectedReason == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.selectRecipientWarehouse)),
+        const SnackBar(content: Text(AppStrings.selectWriteoffReason)),
       );
       return;
     }
 
     if (!_formKey.currentState!.validate()) return;
 
-    final items = <CreateTransferItemRequest>[];
+    final items = <CreateWriteoffItemRequest>[];
     for (final row in _lines) {
       final amount = parseAmount(row.quantityController.text);
       if (amount == null || amount <= 0) continue;
       items.add(
-        CreateTransferItemRequest(
+        CreateWriteoffItemRequest(
           productId: row.product.id,
           amount: amount.toDouble(),
         ),
@@ -135,17 +133,17 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
 
     final confirmed = await showConfirmActionDialog(
       context,
-      title: AppStrings.confirmCreateTransfer,
+      title: AppStrings.confirmCreateWriteoff,
     );
     if (!confirmed) return;
 
     setState(() => _isSaving = true);
 
     try {
-      final result = await sl<TransferRepository>().createTransfer(
-        CreateTransferRequest(
-          senderWarehouseId: widget.warehouse.id,
-          clientWarehouseId: _selectedRecipient!.id,
+      final result = await sl<WriteoffRepository>().createWriteoff(
+        CreateWriteoffRequest(
+          warehouseId: widget.warehouse.id,
+          reasonId: _selectedReason!.id,
           comment: _commentController.text.trim().isEmpty
               ? null
               : _commentController.text.trim(),
@@ -154,11 +152,11 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
       );
 
       if (!mounted) return;
-      context.read<TransfersCubit>().refreshCurrentWarehouse();
+      context.read<WriteoffsCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${AppStrings.transferCreated}: ${result.number}',
+            '${AppStrings.writeoffCreated}: ${result.number}',
           ),
         ),
       );
@@ -182,7 +180,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createTransferTitle)),
+      appBar: AppBar(title: const Text(AppStrings.createWriteoffTitle)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -228,91 +226,92 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppStrings.mainInfo,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 12),
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.organization,
-                            ),
-                            child: Text(predata.organizationName),
-                          ),
-                          const SizedBox(height: 12),
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.warehouseSender,
-                            ),
-                            child: Text(widget.warehouse.name),
-                          ),
-                          const SizedBox(height: 12),
-                          if (predata.availableWarehouses.isEmpty)
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              AppStrings.noRecipientWarehouses,
-                              style: TextStyle(color: AppColors.error),
-                            )
-                          else
-                            _buildRecipientSelector(predata),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _commentController,
-                            maxLines: null,
-                            minLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.comment,
-                              hintText: AppStrings.commentHint,
-                              alignLabelWithHint: true,
+                              AppStrings.mainInfo,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.organization,
+                              ),
+                              child: Text(predata.organizationName),
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.warehouse,
+                              ),
+                              child: Text(widget.warehouse.name),
+                            ),
+                            const SizedBox(height: 12),
+                            if (predata.availableReasons.isEmpty)
+                              Text(
+                                AppStrings.noWriteoffReasons,
+                                style: TextStyle(color: AppColors.error),
+                              )
+                            else
+                              _buildReasonSelector(predata),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _commentController,
+                              maxLines: null,
+                              minLines: 2,
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.comment,
+                                hintText: AppStrings.commentHint,
+                                alignLabelWithHint: true,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.addProduct,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  NomenclaturePicker(
-                    onProductSelected: _addProduct,
-                    isProductAdded: _isProductInLines,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.transferItems,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  if (_lines.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        AppStrings.transfersSearchPrompt,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    )
-                  else
-                    for (final row in _lines)
-                      _TransferLineCard(
-                        row: row,
-                        onRemove: () => _removeLine(row),
-                      ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.addProduct,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    NomenclaturePicker(
+                      onProductSelected: _addProduct,
+                      isProductAdded: _isProductInLines,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.writeoffItems,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_lines.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          AppStrings.writeoffsSearchPrompt,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      )
+                    else
+                      for (final row in _lines)
+                        _WriteoffLineCard(
+                          row: row,
+                          onRemove: () => _removeLine(row),
+                        ),
+                  ],
+                ),
               ),
-            ),
             ),
           ),
           SafeArea(
@@ -332,7 +331,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(AppStrings.createTransfer),
+                      : const Text(AppStrings.createWriteoff),
                 ),
               ),
             ),
@@ -342,47 +341,56 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     );
   }
 
-  Future<void> _openRecipientSelector(TransferPredata predata) async {
+  Future<void> _openReasonSelector(WriteoffPredata predata) async {
     FocusScope.of(context).unfocus();
-    final selected = await Navigator.of(context).push<TransferWarehouseOption>(
+    final selected = await Navigator.of(context).push<WriteoffReasonOption>(
       MaterialPageRoute(
-        builder: (_) => SelectRecipientWarehouseScreen(
-          warehouses: predata.availableWarehouses,
-          selected: _selectedRecipient,
+        builder: (_) => SelectWriteoffReasonScreen(
+          reasons: predata.availableReasons,
+          selected: _selectedReason,
         ),
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _selectedRecipient = selected);
+      setState(() => _selectedReason = selected);
     }
   }
 
-  Widget _buildRecipientSelector(TransferPredata predata) {
-    final selected = _selectedRecipient;
+  Widget _buildReasonSelector(WriteoffPredata predata) {
+    final selected = _selectedReason;
 
     return InkWell(
-      onTap: () => _openRecipientSelector(predata),
+      onTap: () => _openReasonSelector(predata),
       borderRadius: BorderRadius.circular(4),
       child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: AppStrings.recipientWarehouse,
+        decoration: InputDecoration(
+          labelText: AppStrings.writeoffReason,
+          errorText: null,
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Text(
-                selected?.name ?? AppStrings.selectRecipientWarehouse,
+                selected?.name ?? AppStrings.selectWriteoffReason,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: selected == null
                           ? AppColors.textSecondary
                           : AppColors.textPrimary,
+                      height: 1.35,
+                      fontWeight:
+                          selected == null ? FontWeight.w400 : FontWeight.w500,
                     ),
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: AppColors.textSecondary,
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -395,8 +403,8 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   }
 }
 
-class _TransferLineRow {
-  _TransferLineRow({required this.product});
+class _WriteoffLineRow {
+  _WriteoffLineRow({required this.product});
 
   final OrderTypeProduct product;
   final quantityController = TextEditingController();
@@ -406,10 +414,10 @@ class _TransferLineRow {
   }
 }
 
-class _TransferLineCard extends StatelessWidget {
-  const _TransferLineCard({required this.row, required this.onRemove});
+class _WriteoffLineCard extends StatelessWidget {
+  const _WriteoffLineCard({required this.row, required this.onRemove});
 
-  final _TransferLineRow row;
+  final _WriteoffLineRow row;
   final VoidCallback onRemove;
 
   @override

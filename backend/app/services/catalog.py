@@ -116,11 +116,11 @@ async def list_units(session: AsyncSession, include_deleted: bool = False) -> li
 async def list_nomenclature_search(
     session: AsyncSession,
     *,
-    search: str,
+    search: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
-    """Поиск для мобилки: не удалённые, не группы, только «Запас», активные (q_active)."""
+    """Список/поиск для мобилки: не удалённые, не группы, только «Запас», активные (q_active)."""
     return await list_products(
         session,
         search=search,

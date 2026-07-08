@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../core/config/catalog_config.dart';
-import '../../domain/entities/order_type_product.dart';
+import '../../domain/entities/nomenclature_page.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../models/order_type_data_model.dart';
 
@@ -11,31 +11,39 @@ class CatalogRepositoryImpl implements CatalogRepository {
   final Dio _dio;
 
   @override
-  Future<List<OrderTypeProduct>> searchNomenclature(
-    String query, {
-    int limit = 50,
+  Future<NomenclaturePage> searchNomenclature({
+    String? query,
+    int limit = 30,
+    int offset = 0,
   }) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) {
-      return [];
+    final trimmed = query?.trim();
+    final queryParameters = <String, dynamic>{
+      'limit': limit,
+      'offset': offset,
+    };
+    if (trimmed != null && trimmed.isNotEmpty) {
+      queryParameters['q'] = trimmed;
     }
 
     try {
       final response = await _dio.get(
         CatalogConfig.nomenclatureSearchPath,
-        queryParameters: {
-          'q': trimmed,
-          'limit': limit,
-        },
+        queryParameters: queryParameters,
       );
       final json = response.data as Map<String, dynamic>;
       final items = json['items'] as List<dynamic>? ?? [];
+      final total = (json['total'] as num?)?.toInt() ?? items.length;
 
-      return items
-          .map(
-            (e) => OrderTypeProductModel.fromJson(e as Map<String, dynamic>),
-          )
-          .toList();
+      return NomenclaturePage(
+        items: items
+            .map(
+              (e) => OrderTypeProductModel.fromJson(e as Map<String, dynamic>),
+            )
+            .toList(),
+        total: total,
+        offset: offset,
+        limit: limit,
+      );
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

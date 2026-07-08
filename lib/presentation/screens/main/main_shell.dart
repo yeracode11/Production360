@@ -15,6 +15,8 @@ import '../orders/orders_screen.dart';
 import '../transfers/create_transfer_screen.dart';
 import '../transfers/transfers_placeholder_screen.dart';
 import '../transfers/transfers_screen.dart';
+import '../writeoffs/create_writeoff_screen.dart';
+import '../writeoffs/writeoffs_screen.dart';
 import '../../bloc/warehouse/warehouse_state.dart';
 
 class MainShell extends StatefulWidget {
@@ -31,6 +33,7 @@ class _MainShellState extends State<MainShell> {
   static const _titles = [
     AppStrings.orders,
     AppStrings.transfers,
+    AppStrings.writeoffs,
     AppStrings.inventory,
   ];
 
@@ -39,6 +42,7 @@ class _MainShellState extends State<MainShell> {
     AppFeatures.transfersEnabled
         ? const TransfersScreen()
         : const TransfersPlaceholderScreen(),
+    const WriteoffsScreen(),
     const InventoryScreen(),
   ];
 
@@ -56,6 +60,16 @@ class _MainShellState extends State<MainShell> {
     Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => CreateTransferScreen(
+          warehouse: warehouseState.selectedWarehouse,
+        ),
+      ),
+    );
+  }
+
+  void _openCreateWriteoff(WarehouseLoaded warehouseState) {
+    Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateWriteoffScreen(
           warehouse: warehouseState.selectedWarehouse,
         ),
       ),
@@ -100,6 +114,11 @@ class _MainShellState extends State<MainShell> {
             label: AppStrings.transfers,
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.remove_circle_outline),
+            activeIcon: Icon(Icons.remove_circle),
+            label: AppStrings.writeoffs,
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2_outlined),
             activeIcon: Icon(Icons.inventory_2),
             label: AppStrings.inventory,
@@ -130,7 +149,20 @@ class _MainShellState extends State<MainShell> {
                     );
                   },
                 )
-              : null,
+              : _currentIndex == 2
+                  ? BlocBuilder<WarehouseCubit, WarehouseState>(
+                      builder: (context, state) {
+                        if (state is! WarehouseLoaded) {
+                          return const SizedBox.shrink();
+                        }
+                        return FloatingActionButton.extended(
+                          onPressed: () => _openCreateWriteoff(state),
+                          icon: const Icon(Icons.add),
+                          label: const Text(AppStrings.createWriteoff),
+                        );
+                      },
+                    )
+                  : null,
     );
   }
 }

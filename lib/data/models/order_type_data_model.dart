@@ -46,7 +46,7 @@ class OrderTypeProductModel extends OrderTypeProduct {
 
   factory OrderTypeProductModel.fromJson(Map<String, dynamic> json) {
     return OrderTypeProductModel(
-      id: json['id'] as String,
+      id: json['id'].toString(),
       name: json['name'] as String,
       code: json['code'] as String? ?? '',
       unit: json['edIzm'] as String? ?? '',
