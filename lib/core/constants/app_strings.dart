@@ -142,6 +142,24 @@ abstract final class AppStrings {
   static const String transfersComingSoon = 'Раздел временно недоступен';
   static const String inventoryPlaceholder = 'Инвентаризация склада';
 
+  // Inventory (инвентаризация)
+  static const String createInventory = 'Создать инвентаризацию';
+  static const String createInventoryTitle = 'Новая инвентаризация';
+  static const String inventoryDetailsTitle = 'Детали инвентаризации';
+  static const String inventoryNumber = 'Инвентаризация №';
+  static const String noInventoriesForWeek =
+      'Нет инвентаризаций в выбранном периоде. Выберите другую дату в календаре выше.';
+  static const String inventoryCreated = 'Инвентаризация создана';
+  static const String confirmCreateInventory =
+      'Вы уверены, что хотите создать инвентаризацию?';
+  static const String inventoryPosted = 'Проведён';
+  static const String inventoryNotPosted = 'Не проведён';
+  static const String inventoryItems = 'Товары';
+  static const String inventoryNotFound = 'Документ инвентаризации не найден';
+  static const String noInventoryItems = 'Нет позиций в документе';
+  static const String inventorySearchPrompt =
+      'Найдите товар по названию, коду или артикулу';
+
   // Transfers
   static const String createTransfer = 'Создать перемещение';
   static const String createTransferTitle = 'Новое перемещение';

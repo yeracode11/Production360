@@ -9,12 +9,14 @@ import 'core/theme/app_theme.dart';
 import 'data/services/app_version_check_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/order_repository.dart';
+import 'domain/repositories/inventory_repository.dart';
 import 'domain/repositories/transfer_repository.dart';
 import 'domain/repositories/writeoff_repository.dart';
 import 'domain/services/force_update_notifier.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/auth/auth_state.dart';
+import 'presentation/bloc/inventory/inventory_cubit.dart';
 import 'presentation/bloc/orders/orders_cubit.dart';
 import 'presentation/bloc/transfers/transfers_cubit.dart';
 import 'presentation/bloc/writeoffs/writeoffs_cubit.dart';
@@ -64,6 +66,12 @@ class ConfectioneryApp extends StatelessWidget {
         BlocProvider(
           create: (context) => WriteoffsCubit(
             writeoffRepository: sl<WriteoffRepository>(),
+            warehouseCubit: context.read<WarehouseCubit>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => InventoryCubit(
+            inventoryRepository: sl<InventoryRepository>(),
             warehouseCubit: context.read<WarehouseCubit>(),
           ),
         ),

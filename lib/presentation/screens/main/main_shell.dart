@@ -9,6 +9,7 @@ import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../bloc/warehouse/warehouse_cubit.dart';
 import '../../widgets/app_header.dart';
+import '../inventory/create_inventory_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../orders/select_order_type_screen.dart';
 import '../orders/orders_screen.dart';
@@ -70,6 +71,16 @@ class _MainShellState extends State<MainShell> {
     Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => CreateWriteoffScreen(
+          warehouse: warehouseState.selectedWarehouse,
+        ),
+      ),
+    );
+  }
+
+  void _openCreateInventory(WarehouseLoaded warehouseState) {
+    Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateInventoryScreen(
           warehouse: warehouseState.selectedWarehouse,
         ),
       ),
@@ -162,7 +173,20 @@ class _MainShellState extends State<MainShell> {
                         );
                       },
                     )
-                  : null,
+                  : _currentIndex == 3
+                      ? BlocBuilder<WarehouseCubit, WarehouseState>(
+                          builder: (context, state) {
+                            if (state is! WarehouseLoaded) {
+                              return const SizedBox.shrink();
+                            }
+                            return FloatingActionButton.extended(
+                              onPressed: () => _openCreateInventory(state),
+                              icon: const Icon(Icons.add),
+                              label: const Text(AppStrings.createInventory),
+                            );
+                          },
+                        )
+                      : null,
     );
   }
 }

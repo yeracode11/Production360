@@ -1,0 +1,23 @@
+import '../../core/utils/one_c_date.dart';
+import '../../domain/entities/create_inventory_result.dart';
+
+class CreateInventoryResultModel extends CreateInventoryResult {
+  const CreateInventoryResultModel({
+    required super.id,
+    required super.number,
+    required super.date,
+    required super.isPosted,
+    super.dateDisplay,
+  });
+
+  factory CreateInventoryResultModel.from1CJson(Map<String, dynamic> json) {
+    final dateRaw = json['Дата'] as String;
+    return CreateInventoryResultModel(
+      id: json['Ссылка'] as String,
+      number: json['Номер'] as String,
+      date: parseOneCDate(dateRaw),
+      dateDisplay: dateRaw,
+      isPosted: json['Проведен'] as bool? ?? false,
+    );
+  }
+}

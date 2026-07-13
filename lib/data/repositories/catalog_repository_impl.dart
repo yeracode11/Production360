@@ -54,6 +54,9 @@ class CatalogRepositoryImpl implements CatalogRepository {
     if (status == 401 || status == 403) {
       return 'Неверный токен каталога';
     }
+    if (status == 502 || status == 503 || status == 504) {
+      return 'Сервер каталога временно недоступен. Попробуйте позже';
+    }
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
       return 'Сервер каталога не отвечает';

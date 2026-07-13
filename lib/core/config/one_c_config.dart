@@ -16,4 +16,6 @@ abstract final class OneCConfig {
       '/mobile/spisaniyezapasov/predata';
   static const String stockWriteoffCreatePath =
       '/mobile/spisaniyezapasov/create';
+  static const String inventoryPath = '/mobile/invent';
+  static const String inventoryCreatePath = '/mobile/invent/create';
 }
