@@ -210,6 +210,8 @@ async def list_nomenclature_search(
             parent_is_root=parent_is_root,
             groups_only=True,
             include_deleted=False,
+            active_only=False,
+            stock_only=False,
             limit=limit,
             offset=offset,
         )
