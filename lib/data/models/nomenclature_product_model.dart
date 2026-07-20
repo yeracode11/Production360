@@ -19,7 +19,7 @@ class NomenclatureProductModel extends NomenclatureProduct {
       unit: json['edIzm'] as String? ?? '',
       showInMobileApp: parseOneCBool(
         json['showInMobileApp'] ?? json['ОтображатьВМобильнымПриложении'],
-        defaultValue: true,
+        defaultValue: false,
       ),
       usagePlaces: parseNomenclatureUsagePlaces(
         json['usagePlaces'] ?? json['МестаИспользования'],

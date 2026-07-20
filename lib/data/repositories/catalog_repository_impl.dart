@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/config/catalog_config.dart';
 import '../../domain/entities/nomenclature_page.dart';
+import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../models/nomenclature_product_model.dart';
 
@@ -43,6 +44,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
                 e as Map<String, dynamic>,
               ),
             )
+            .where((product) => _isVisibleForOrganization(product, organizationId))
             .toList(),
         total: total,
         offset: offset,
@@ -69,5 +71,24 @@ class CatalogRepositoryImpl implements CatalogRepository {
       return 'Не удалось подключиться к серверу каталога';
     }
     return e.message ?? 'Ошибка поиска номенклатуры';
+  }
+
+  /// Пустые места использования + галочка → для всех организаций.
+  /// Иначе — только если организация есть в [usagePlaces].
+  bool _isVisibleForOrganization(
+    NomenclatureProduct product,
+    String organizationId,
+  ) {
+    if (!product.showInMobileApp) return false;
+    if (product.usagePlaces.isEmpty) return true;
+
+    final orgId = organizationId.trim().toLowerCase();
+    if (orgId.isEmpty) return true;
+
+    return product.usagePlaces.any(
+      (place) =>
+          place.type.toLowerCase() == 'organization' &&
+          place.id.trim().toLowerCase() == orgId,
+    );
   }
 }

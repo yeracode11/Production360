@@ -103,7 +103,7 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             "is_deleted": _parse_bool(raw.get("ПометкаУдаления")),
             "show_in_mobile_app": _parse_bool(
                 raw.get("ОтображатьВМобильнымПриложении"),
-                default=True,
+                default=False,
             ),
             "usage_places": _parse_usage_places(raw.get("МестаИспользования")),
         }
@@ -189,18 +189,13 @@ async def list_products(
     if stock_only:
         stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
     if mobile_only:
-        # До первого синка с новыми полями usage_places=NULL — показываем как раньше.
-        stmt = stmt.where(
-            or_(
-                Product.show_in_mobile_app.is_(True),
-                Product.usage_places.is_(None),
-            )
-        )
+        stmt = stmt.where(Product.show_in_mobile_app.is_(True))
     if organization_id:
         org_id = organization_id.strip()
         stmt = stmt.where(
             or_(
                 Product.usage_places.is_(None),
+                text("COALESCE(jsonb_array_length(products.usage_places), 0) = 0"),
                 text(
                     "EXISTS ("
                     "SELECT 1 FROM jsonb_array_elements(products.usage_places) AS elem "

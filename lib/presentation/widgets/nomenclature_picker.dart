@@ -237,57 +237,73 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
         ],
         if (_items.isNotEmpty) ...[
           const SizedBox(height: 8),
-          _Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: Text(
-                    _activeQuery.isEmpty
-                        ? '${AppStrings.nomenclatureShown}: ${_items.length}'
-                            '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}'
-                        : '${AppStrings.searchResultsFound}: ${_items.length}'
-                            '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.turquoiseDark,
-                          fontWeight: FontWeight.w600,
-                        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              _activeQuery.isEmpty
+                  ? '${AppStrings.nomenclatureShown}: ${_items.length}'
+                      '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}'
+                  : '${AppStrings.searchResultsFound}: ${_items.length}'
+                      '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppColors.turquoiseDark,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                ...List.generate(_items.length, (index) {
-                  final product = _items[index];
-                  final isLast = index == _items.length - 1 && !_hasMore;
-                  return _ProductTile(
-                    product: product,
-                    isAdded: widget.isProductAdded(product.id),
-                    onTap: () => widget.onProductSelected(product),
-                    showDivider: !isLast || _hasMore,
-                  );
-                }),
-                if (_hasMore) ...[
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _isLoadingMore ? null : _loadMore,
-                      child: _isLoadingMore
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(
-                              '${AppStrings.loadMoreNomenclature}'
-                              ' (${widget.batchSize})',
-                            ),
-                    ),
-                  ),
-                ],
-              ],
             ),
           ),
         ],
+        Expanded(
+          child: _items.isEmpty
+              ? const SizedBox.shrink()
+              : _Panel(
+                  child: ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: _items.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (_, index) {
+                      if (index < _items.length - 1 ||
+                          (_hasMore && index == _items.length - 1)) {
+                        return Divider(
+                          height: 1,
+                          color: AppColors.surfaceMuted,
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                    itemBuilder: (context, index) {
+                      if (index == _items.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _isLoadingMore ? null : _loadMore,
+                              child: _isLoadingMore
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      '${AppStrings.loadMoreNomenclature}'
+                                      ' (${widget.batchSize})',
+                                    ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final product = _items[index];
+                      return _ProductTile(
+                        product: product,
+                        isAdded: widget.isProductAdded(product.id),
+                        onTap: () => widget.onProductSelected(product),
+                      );
+                    },
+                  ),
+                ),
+        ),
       ],
     );
   }
@@ -317,13 +333,11 @@ class _ProductTile extends StatelessWidget {
     required this.product,
     required this.onTap,
     required this.isAdded,
-    this.showDivider = true,
   });
 
   final NomenclatureProduct product;
   final VoidCallback onTap;
   final bool isAdded;
-  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
@@ -337,81 +351,73 @@ class _ProductTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceCard,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.surfaceMuted),
-                    ),
-                    child: Icon(
-                      Icons.inventory_2_outlined,
-                      size: 20,
-                      color: AppColors.turquoiseDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                            height: 1.3,
-                          ),
-                        ),
-                        if (codeLabel != null || product.unit.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              if (codeLabel != null)
-                                _MetaChip(icon: Icons.tag, label: codeLabel),
-                              if (product.unit.isNotEmpty)
-                                _MetaChip(
-                                  icon: Icons.straighten,
-                                  label: product.unit,
-                                ),
-                            ],
-                          ),
-                        ],
-                        if (product.usagePlaces.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              for (final place in product.usagePlaces)
-                                _MetaChip(
-                                  icon: place.type.toLowerCase() == 'warehouse'
-                                      ? Icons.warehouse_outlined
-                                      : Icons.business_outlined,
-                                  label: place.name,
-                                ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _AddButton(isAdded: isAdded),
-                ],
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.surfaceMuted),
+                ),
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  size: 20,
+                  color: AppColors.turquoiseDark,
+                ),
               ),
-              if (showDivider) ...[
-                const SizedBox(height: 10),
-                Divider(height: 1, color: AppColors.surfaceMuted),
-              ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (codeLabel != null || product.unit.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (codeLabel != null)
+                            _MetaChip(icon: Icons.tag, label: codeLabel),
+                          if (product.unit.isNotEmpty)
+                            _MetaChip(
+                              icon: Icons.straighten,
+                              label: product.unit,
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (product.usagePlaces.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          for (final place in product.usagePlaces)
+                            _MetaChip(
+                              icon: place.type.toLowerCase() == 'warehouse'
+                                  ? Icons.warehouse_outlined
+                                  : Icons.business_outlined,
+                              label: place.name,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _AddButton(isAdded: isAdded),
             ],
           ),
         ),
