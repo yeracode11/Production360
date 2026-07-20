@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/config/catalog_config.dart';
 import '../../domain/entities/nomenclature_page.dart';
 import '../../domain/repositories/catalog_repository.dart';
-import '../models/order_type_data_model.dart';
+import '../models/nomenclature_product_model.dart';
 
 class CatalogRepositoryImpl implements CatalogRepository {
   CatalogRepositoryImpl({required Dio dio}) : _dio = dio;
@@ -37,8 +37,11 @@ class CatalogRepositoryImpl implements CatalogRepository {
       return NomenclaturePage(
         items: items
             .map(
-              (e) => OrderTypeProductModel.fromJson(e as Map<String, dynamic>),
+              (e) => NomenclatureProductModel.fromCatalogJson(
+                e as Map<String, dynamic>,
+              ),
             )
+            .where((product) => product.showInMobileApp)
             .toList(),
         total: total,
         offset: offset,

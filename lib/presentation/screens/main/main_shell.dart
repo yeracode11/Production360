@@ -11,6 +11,8 @@ import '../../bloc/warehouse/warehouse_cubit.dart';
 import '../../widgets/app_header.dart';
 import '../inventory/create_inventory_screen.dart';
 import '../inventory/inventory_screen.dart';
+import '../production/create_production_screen.dart';
+import '../production/production_screen.dart';
 import '../orders/select_order_type_screen.dart';
 import '../orders/orders_screen.dart';
 import '../transfers/create_transfer_screen.dart';
@@ -36,6 +38,7 @@ class _MainShellState extends State<MainShell> {
     AppStrings.transfers,
     AppStrings.writeoffs,
     AppStrings.inventory,
+    AppStrings.production,
   ];
 
   final _screens = [
@@ -45,6 +48,7 @@ class _MainShellState extends State<MainShell> {
         : const TransfersPlaceholderScreen(),
     const WriteoffsScreen(),
     const InventoryScreen(),
+    const ProductionScreen(),
   ];
 
   void _openCreateOrder(WarehouseLoaded warehouseState) {
@@ -87,6 +91,16 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  void _openCreateProduction(WarehouseLoaded warehouseState) {
+    Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateProductionScreen(
+          warehouse: warehouseState.selectedWarehouse,
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +125,7 @@ class _MainShellState extends State<MainShell> {
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
@@ -133,6 +148,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.inventory_2_outlined),
             activeIcon: Icon(Icons.inventory_2),
             label: AppStrings.inventory,
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.precision_manufacturing_outlined),
+            activeIcon: Icon(Icons.precision_manufacturing),
+            label: AppStrings.production,
           ),
         ],
       ),
@@ -186,7 +206,21 @@ class _MainShellState extends State<MainShell> {
                             );
                           },
                         )
-                      : null,
+                      : _currentIndex == 4
+                          ? BlocBuilder<WarehouseCubit, WarehouseState>(
+                              builder: (context, state) {
+                                if (state is! WarehouseLoaded) {
+                                  return const SizedBox.shrink();
+                                }
+                                return FloatingActionButton.extended(
+                                  onPressed: () => _openCreateProduction(state),
+                                  icon: const Icon(Icons.add),
+                                  label:
+                                      const Text(AppStrings.createProduction),
+                                );
+                              },
+                            )
+                          : null,
     );
   }
 }

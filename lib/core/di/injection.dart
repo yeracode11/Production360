@@ -12,9 +12,11 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../../data/repositories/inventory_repository_impl.dart';
+import '../../data/repositories/production_repository_impl.dart';
 import '../../data/repositories/transfer_repository_impl.dart';
 import '../../data/repositories/writeoff_repository_impl.dart';
 import '../../domain/repositories/inventory_repository.dart';
+import '../../domain/repositories/production_repository.dart';
 import '../../domain/repositories/transfer_repository.dart';
 import '../../domain/repositories/writeoff_repository.dart';
 import '../../domain/services/force_update_notifier.dart';
@@ -75,6 +77,9 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<InventoryRepository>(
     () => InventoryRepositoryImpl(dioClient: sl<DioClient>()),
+  );
+  sl.registerLazySingleton<ProductionRepository>(
+    () => ProductionRepositoryImpl(dioClient: sl<DioClient>()),
   );
 
   sl.registerLazySingleton<Dio>(

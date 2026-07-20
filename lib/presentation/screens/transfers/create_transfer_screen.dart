@@ -9,7 +9,7 @@ import '../../../core/utils/quantity_input.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
 import '../../../domain/entities/create_transfer_request.dart';
-import '../../../domain/entities/order_type_product.dart';
+import '../../../domain/entities/nomenclature_product.dart';
 import '../../../domain/entities/transfer_predata.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/transfer_repository.dart';
@@ -81,7 +81,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     }
   }
 
-  void _addProduct(OrderTypeProduct product) {
+  void _addProduct(NomenclatureProduct product) {
     final existing = _lines.where((l) => l.product.id == product.id).toList();
     if (existing.isNotEmpty) {
       final row = existing.first;
@@ -398,7 +398,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
 class _TransferLineRow {
   _TransferLineRow({required this.product});
 
-  final OrderTypeProduct product;
+  final NomenclatureProduct product;
   final quantityController = TextEditingController();
 
   void dispose() {

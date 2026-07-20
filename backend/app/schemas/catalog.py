@@ -13,8 +13,14 @@ class UnitOut(BaseModel):
     is_deleted: bool
 
 
+class UsagePlaceOut(BaseModel):
+    type: str
+    id: str
+    name: str
+
+
 class ProductOut(BaseModel):
-    """Формат близкий к мобильному API (products в type/data)."""
+    """Формат для мобилки: поиск номенклатуры (не заявки)."""
 
     id: UUID
     name: str
@@ -27,6 +33,8 @@ class ProductOut(BaseModel):
     is_active: bool
     product_type: str | None = None
     barcode: str | None = None
+    showInMobileApp: bool = False
+    usagePlaces: list[UsagePlaceOut] = Field(default_factory=list)
 
 
 class ProductListResponse(BaseModel):

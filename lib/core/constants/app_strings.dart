@@ -160,6 +160,28 @@ abstract final class AppStrings {
   static const String inventorySearchPrompt =
       'Найдите товар по названию, коду или артикулу';
 
+  // Production (производство)
+  static const String production = 'Производство';
+  static const String createProduction = 'Создать производство';
+  static const String createProductionTitle = 'Новое производство';
+  static const String productionDetailsTitle = 'Детали производства';
+  static const String productionNumber = 'Производство №';
+  static const String noProductionsForWeek =
+      'Нет документов производства в выбранном периоде. Выберите другую дату в календаре выше.';
+  static const String productionCreated = 'Производство создано';
+  static const String confirmCreateProduction =
+      'Вы уверены, что хотите создать производство?';
+  static const String productionPosted = 'Проведён';
+  static const String productionNotPosted = 'Не проведён';
+  static const String productionItems = 'Товары';
+  static const String productionNotFound = 'Документ производства не найден';
+  static const String noProductionItems = 'Нет позиций в документе';
+  static const String productionSearchPrompt =
+      'Найдите товар по названию, коду или артикулу';
+  static const String productionUsagePlaces = 'Места использования';
+  static const String productionUsagePlace = 'Место использования';
+  static const String noProductionUsagePlaces = 'Места использования не указаны';
+
   // Transfers
   static const String createTransfer = 'Создать перемещение';
   static const String createTransferTitle = 'Новое перемещение';

@@ -7,10 +7,10 @@ import '../../core/di/injection.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/exception_message.dart';
 import '../../core/utils/order_item_display.dart';
-import '../../domain/entities/order_type_product.dart';
+import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 
-/// Поиск и список номенклатуры батчами (перемещение / списание).
+/// Поиск номенклатуры для перемещения, списания, инвентаризации, производства.
 class NomenclaturePicker extends StatefulWidget {
   const NomenclaturePicker({
     super.key,
@@ -19,7 +19,7 @@ class NomenclaturePicker extends StatefulWidget {
     this.batchSize = 30,
   });
 
-  final ValueChanged<OrderTypeProduct> onProductSelected;
+  final ValueChanged<NomenclatureProduct> onProductSelected;
   final bool Function(String productId) isProductAdded;
   final int batchSize;
 
@@ -29,7 +29,7 @@ class NomenclaturePicker extends StatefulWidget {
 
 class _NomenclaturePickerState extends State<NomenclaturePicker> {
   final _searchController = TextEditingController();
-  final List<OrderTypeProduct> _items = [];
+  final List<NomenclatureProduct> _items = [];
   Timer? _searchDebounce;
 
   bool _isLoading = false;
@@ -316,7 +316,7 @@ class _ProductTile extends StatelessWidget {
     this.showDivider = true,
   });
 
-  final OrderTypeProduct product;
+  final NomenclatureProduct product;
   final VoidCallback onTap;
   final bool isAdded;
   final bool showDivider;
@@ -377,6 +377,22 @@ class _ProductTile extends StatelessWidget {
                                 _MetaChip(
                                   icon: Icons.straighten,
                                   label: product.unit,
+                                ),
+                            ],
+                          ),
+                        ],
+                        if (product.usagePlaces.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final place in product.usagePlaces)
+                                _MetaChip(
+                                  icon: place.type.toLowerCase() == 'warehouse'
+                                      ? Icons.warehouse_outlined
+                                      : Icons.business_outlined,
+                                  label: place.name,
                                 ),
                             ],
                           ),

@@ -58,6 +58,28 @@ async def sync_units(session: AsyncSession, items: list[dict[str, Any]]) -> int:
     return upserted
 
 
+def _parse_usage_places(raw: Any) -> list[dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+
+    places: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        place_type = str(entry.get("type") or "").strip()
+        place_id = str(entry.get("id") or "").strip()
+        name = str(entry.get("name") or "").strip()
+        if not name:
+            continue
+        dedupe_key = place_id if place_id else f"{place_type}|{name}"
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        places.append({"type": place_type, "id": place_id, "name": name})
+    return places
+
+
 async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> int:
     upserted = 0
     for raw in items:
@@ -79,6 +101,10 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             "comment": _empty_to_none(raw.get("Комментарий")),
             "predefined_name": _empty_to_none(raw.get("ИмяПредопределенныхДанных")),
             "is_deleted": _parse_bool(raw.get("ПометкаУдаления")),
+            "show_in_mobile_app": _parse_bool(
+                raw.get("ОтображатьВМобильнымПриложении")
+            ),
+            "usage_places": _parse_usage_places(raw.get("МестаИспользования")),
         }
         stmt = insert(Product).values(**values)
         stmt = stmt.on_conflict_do_update(
@@ -96,6 +122,8 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
                 "comment": values["comment"],
                 "predefined_name": values["predefined_name"],
                 "is_deleted": values["is_deleted"],
+                "show_in_mobile_app": values["show_in_mobile_app"],
+                "usage_places": values["usage_places"],
             },
         )
         await session.execute(stmt)
@@ -120,7 +148,7 @@ async def list_nomenclature_search(
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
-    """Список/поиск для мобилки: не удалённые, не группы, только «Запас», активные (q_active)."""
+    """Список/поиск для мобилки: Запас, активные, show_in_mobile_app=true."""
     return await list_products(
         session,
         search=search,
@@ -128,6 +156,7 @@ async def list_nomenclature_search(
         include_groups=False,
         include_deleted=False,
         stock_only=True,
+        mobile_only=True,
         limit=limit,
         offset=offset,
     )
@@ -141,6 +170,7 @@ async def list_products(
     include_groups: bool = False,
     include_deleted: bool = False,
     stock_only: bool = True,
+    mobile_only: bool = False,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
@@ -154,6 +184,8 @@ async def list_products(
         stmt = stmt.where(Product.comment == ACTIVE_PRODUCT_COMMENT)
     if stock_only:
         stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
+    if mobile_only:
+        stmt = stmt.where(Product.show_in_mobile_app.is_(True))
 
     if search:
         pattern = f"%{search.strip()}%"
@@ -174,6 +206,7 @@ async def list_products(
 
 def product_to_out(product: Product) -> dict[str, Any]:
     unit_short = product.unit.short_name if product.unit else None
+    usage_places = product.usage_places if isinstance(product.usage_places, list) else []
     return {
         "id": product.id,
         "name": product.name,
@@ -186,6 +219,8 @@ def product_to_out(product: Product) -> dict[str, Any]:
         "is_active": product.comment == ACTIVE_PRODUCT_COMMENT and not product.is_deleted,
         "product_type": product.product_type,
         "barcode": product.barcode,
+        "showInMobileApp": product.show_in_mobile_app,
+        "usagePlaces": usage_places,
     }
 
 

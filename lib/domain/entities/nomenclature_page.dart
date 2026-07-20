@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import 'order_type_product.dart';
+import 'nomenclature_product.dart';
 
 /// Страница номенклатуры из GET /nomenclature/search.
 class NomenclaturePage extends Equatable {
@@ -11,7 +11,7 @@ class NomenclaturePage extends Equatable {
     required this.limit,
   });
 
-  final List<OrderTypeProduct> items;
+  final List<NomenclatureProduct> items;
   final int total;
   final int offset;
   final int limit;
