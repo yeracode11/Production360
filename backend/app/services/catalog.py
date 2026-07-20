@@ -30,6 +30,65 @@ def _is_root_parent(parent_id: uuid.UUID | None) -> bool:
     return parent_id is None or parent_id == EMPTY_PARENT_UUID
 
 
+def _mobile_child_exists_sql(parent_column: str, organization_id: str | None) -> str:
+    org_id = (organization_id or "").strip()
+    org_clause = (
+        "child.usage_places IS NULL "
+        "OR COALESCE(jsonb_array_length(child.usage_places), 0) = 0 "
+        "OR EXISTS ("
+        "  SELECT 1 FROM jsonb_array_elements(child.usage_places) elem "
+        "  WHERE elem->>'type' = 'organization' "
+        "  AND lower(elem->>'id') = lower(:org_id)"
+        ")"
+        if org_id
+        else "TRUE"
+    )
+    return (
+        "EXISTS ("
+        "SELECT 1 FROM products child "
+        f"WHERE child.parent_id = {parent_column} "
+        "AND child.is_deleted = false "
+        "AND child.is_group = false "
+        "AND child.show_in_mobile_app = true "
+        "AND child.comment = :active_comment "
+        "AND child.product_type = :stock_type "
+        f"AND ({org_clause})"
+        ")"
+    )
+
+
+def _non_empty_group_condition(organization_id: str | None):
+    """Группа не пустая: есть товар для мобилки или непустая подгруппа."""
+    mobile_at_level = _mobile_child_exists_sql("products.id", organization_id)
+    mobile_in_subgroup = _mobile_child_exists_sql("child.id", organization_id)
+    subgroup_with_content = (
+        "EXISTS ("
+        "SELECT 1 FROM products child "
+        "WHERE child.parent_id = products.id "
+        "AND child.is_deleted = false "
+        "AND child.is_group = true "
+        f"AND (({mobile_in_subgroup}) OR EXISTS ("
+        "  SELECT 1 FROM products nested "
+        "  WHERE nested.parent_id = child.id "
+        "  AND nested.is_deleted = false "
+        "  AND nested.is_group = true"
+        "))"
+        ")"
+    )
+    condition_sql = f"(({mobile_at_level}) OR ({subgroup_with_content}))"
+    org_id = (organization_id or "").strip()
+    if org_id:
+        return text(condition_sql).bindparams(
+            org_id=org_id,
+            active_comment=ACTIVE_PRODUCT_COMMENT,
+            stock_type=STOCK_PRODUCT_TYPE,
+        )
+    return text(condition_sql).bindparams(
+        active_comment=ACTIVE_PRODUCT_COMMENT,
+        stock_type=STOCK_PRODUCT_TYPE,
+    )
+
+
 def _parse_bool(value: Any, default: bool = False) -> bool:
     if isinstance(value, bool):
         return value
@@ -206,6 +265,7 @@ async def list_nomenclature_search(
     if groups_only:
         return await list_products(
             session,
+            organization_id=organization_id,
             parent_id=parent_id,
             parent_is_root=parent_is_root,
             groups_only=True,
@@ -254,6 +314,7 @@ async def list_products(
 
     if groups_only:
         stmt = stmt.where(Product.is_group.is_(True))
+        stmt = stmt.where(_non_empty_group_condition(organization_id))
     elif not include_groups:
         stmt = stmt.where(Product.is_group.is_(False))
 
