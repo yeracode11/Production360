@@ -6,7 +6,6 @@ import '../../core/constants/app_strings.dart';
 import '../../core/di/injection.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/exception_message.dart';
-import '../../core/utils/order_item_display.dart';
 import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 
@@ -636,7 +635,6 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final codeLabel = productCodeDisplayLabel(product.code);
     final theme = Theme.of(context);
 
     return Material(
@@ -676,36 +674,11 @@ class _ProductTile extends StatelessWidget {
                         height: 1.3,
                       ),
                     ),
-                    if (codeLabel != null || product.unit.isNotEmpty) ...[
+                    if (product.unit.isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          if (codeLabel != null)
-                            _MetaChip(icon: Icons.tag, label: codeLabel),
-                          if (product.unit.isNotEmpty)
-                            _MetaChip(
-                              icon: Icons.straighten,
-                              label: product.unit,
-                            ),
-                        ],
-                      ),
-                    ],
-                    if (product.usagePlaces.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          for (final place in product.usagePlaces)
-                            _MetaChip(
-                              icon: place.type.toLowerCase() == 'warehouse'
-                                  ? Icons.warehouse_outlined
-                                  : Icons.business_outlined,
-                              label: place.name,
-                            ),
-                        ],
+                      _MetaChip(
+                        icon: Icons.straighten,
+                        label: product.unit,
                       ),
                     ],
                   ],
