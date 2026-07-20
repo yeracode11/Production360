@@ -14,9 +14,9 @@ import '../../../domain/entities/transfer_predata.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/transfer_repository.dart';
 import '../../bloc/transfers/transfers_cubit.dart';
+import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
-import '../../widgets/nomenclature_picker.dart';
 import 'select_recipient_warehouse_screen.dart';
 
 class CreateTransferScreen extends StatefulWidget {
@@ -280,20 +280,16 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    AppStrings.addProduct,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  NomenclaturePicker(
-                    onProductSelected: _addProduct,
-                    isProductAdded: _isProductInLines,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
                     AppStrings.transferItems,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
+                  AddNomenclatureButton(
+                    organizationId: predata.organizationId,
+                    onProductSelected: _addProduct,
+                    isProductAdded: _isProductInLines,
+                  ),
+                  const SizedBox(height: 12),
                   if (_lines.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),

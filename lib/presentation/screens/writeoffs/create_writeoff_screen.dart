@@ -14,9 +14,9 @@ import '../../../domain/entities/writeoff_predata.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/writeoff_repository.dart';
 import '../../bloc/writeoffs/writeoffs_cubit.dart';
+import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
-import '../../widgets/nomenclature_picker.dart';
 import 'select_writeoff_reason_screen.dart';
 
 class CreateWriteoffScreen extends StatefulWidget {
@@ -278,20 +278,16 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      AppStrings.addProduct,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    NomenclaturePicker(
-                      onProductSelected: _addProduct,
-                      isProductAdded: _isProductInLines,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
                       AppStrings.writeoffItems,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
+                    AddNomenclatureButton(
+                      organizationId: _predata!.organizationId,
+                      onProductSelected: _addProduct,
+                      isProductAdded: _isProductInLines,
+                    ),
+                    const SizedBox(height: 12),
                     if (_lines.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),

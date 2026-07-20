@@ -14,11 +14,13 @@ import '../../domain/repositories/catalog_repository.dart';
 class NomenclaturePicker extends StatefulWidget {
   const NomenclaturePicker({
     super.key,
+    required this.organizationId,
     required this.onProductSelected,
     required this.isProductAdded,
     this.batchSize = 30,
   });
 
+  final String organizationId;
   final ValueChanged<NomenclatureProduct> onProductSelected;
   final bool Function(String productId) isProductAdded;
   final int batchSize;
@@ -65,6 +67,7 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
 
     try {
       final page = await sl<CatalogRepository>().searchNomenclature(
+        organizationId: widget.organizationId,
         query: _activeQuery.isEmpty ? null : _activeQuery,
         limit: widget.batchSize,
         offset: 0,
@@ -99,6 +102,7 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
 
     try {
       final page = await sl<CatalogRepository>().searchNomenclature(
+        organizationId: widget.organizationId,
         query: _activeQuery.isEmpty ? null : _activeQuery,
         limit: widget.batchSize,
         offset: _nextOffset,

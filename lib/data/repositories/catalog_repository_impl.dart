@@ -12,12 +12,14 @@ class CatalogRepositoryImpl implements CatalogRepository {
 
   @override
   Future<NomenclaturePage> searchNomenclature({
+    required String organizationId,
     String? query,
     int limit = 30,
     int offset = 0,
   }) async {
     final trimmed = query?.trim();
     final queryParameters = <String, dynamic>{
+      'organizationID': organizationId,
       'limit': limit,
       'offset': offset,
     };
@@ -41,7 +43,6 @@ class CatalogRepositoryImpl implements CatalogRepository {
                 e as Map<String, dynamic>,
               ),
             )
-            .where((product) => product.showInMobileApp)
             .toList(),
         total: total,
         offset: offset,

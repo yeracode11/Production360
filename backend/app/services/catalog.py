@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,7 +102,8 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             "predefined_name": _empty_to_none(raw.get("ИмяПредопределенныхДанных")),
             "is_deleted": _parse_bool(raw.get("ПометкаУдаления")),
             "show_in_mobile_app": _parse_bool(
-                raw.get("ОтображатьВМобильнымПриложении")
+                raw.get("ОтображатьВМобильнымПриложении"),
+                default=True,
             ),
             "usage_places": _parse_usage_places(raw.get("МестаИспользования")),
         }
@@ -145,13 +146,15 @@ async def list_nomenclature_search(
     session: AsyncSession,
     *,
     search: str | None = None,
+    organization_id: str,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
-    """Список/поиск для мобилки: Запас, активные, show_in_mobile_app=true."""
+    """Список/поиск для мобилки: Запас, активные, org из МестаИспользования."""
     return await list_products(
         session,
         search=search,
+        organization_id=organization_id,
         active_only=True,
         include_groups=False,
         include_deleted=False,
@@ -166,6 +169,7 @@ async def list_products(
     session: AsyncSession,
     *,
     search: str | None = None,
+    organization_id: str | None = None,
     active_only: bool = True,
     include_groups: bool = False,
     include_deleted: bool = False,
@@ -185,7 +189,27 @@ async def list_products(
     if stock_only:
         stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
     if mobile_only:
-        stmt = stmt.where(Product.show_in_mobile_app.is_(True))
+        # До первого синка с новыми полями usage_places=NULL — показываем как раньше.
+        stmt = stmt.where(
+            or_(
+                Product.show_in_mobile_app.is_(True),
+                Product.usage_places.is_(None),
+            )
+        )
+    if organization_id:
+        org_id = organization_id.strip()
+        stmt = stmt.where(
+            or_(
+                Product.usage_places.is_(None),
+                text(
+                    "EXISTS ("
+                    "SELECT 1 FROM jsonb_array_elements(products.usage_places) AS elem "
+                    "WHERE elem->>'type' = 'organization' "
+                    "AND lower(elem->>'id') = lower(:org_id)"
+                    ")"
+                ).bindparams(org_id=org_id),
+            )
+        )
 
     if search:
         pattern = f"%{search.strip()}%"

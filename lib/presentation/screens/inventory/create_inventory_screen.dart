@@ -11,11 +11,13 @@ import '../../../core/utils/order_item_display.dart';
 import '../../../domain/entities/create_inventory_request.dart';
 import '../../../domain/entities/nomenclature_product.dart';
 import '../../../domain/entities/warehouse.dart';
+import '../../../domain/entities/writeoff_predata.dart';
 import '../../../domain/repositories/inventory_repository.dart';
+import '../../../domain/repositories/writeoff_repository.dart';
 import '../../bloc/inventory/inventory_cubit.dart';
+import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
-import '../../widgets/nomenclature_picker.dart';
 
 class CreateInventoryScreen extends StatefulWidget {
   const CreateInventoryScreen({super.key, required this.warehouse});
@@ -30,7 +32,40 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
   final List<_InventoryLineRow> _lines = [];
+  WriteoffPredata? _predata;
+  bool _isLoadingPredata = true;
+  String? _predataError;
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPredata();
+  }
+
+  Future<void> _loadPredata() async {
+    setState(() {
+      _isLoadingPredata = true;
+      _predataError = null;
+    });
+
+    try {
+      final predata = await sl<WriteoffRepository>().fetchPredata(
+        warehouseId: widget.warehouse.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _predata = predata;
+        _isLoadingPredata = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _predataError = exceptionMessage(e);
+        _isLoadingPredata = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -137,6 +172,41 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingPredata) {
+      return Scaffold(
+        appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_predataError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _predataError!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.error),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadPredata,
+                  child: const Text(AppStrings.pullToRefresh),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final predata = _predata!;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
       body: Form(
@@ -166,6 +236,13 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
                               const SizedBox(height: 12),
                               InputDecorator(
                                 decoration: const InputDecoration(
+                                  labelText: AppStrings.organization,
+                                ),
+                                child: Text(predata.organizationName),
+                              ),
+                              const SizedBox(height: 12),
+                              InputDecorator(
+                                decoration: const InputDecoration(
                                   labelText: AppStrings.warehouse,
                                 ),
                                 child: Text(widget.warehouse.name),
@@ -187,20 +264,16 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        AppStrings.addProduct,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      NomenclaturePicker(
-                        onProductSelected: _addProduct,
-                        isProductAdded: _isProductInLines,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
                         AppStrings.inventoryItems,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
+                      AddNomenclatureButton(
+                        organizationId: predata.organizationId,
+                        onProductSelected: _addProduct,
+                        isProductAdded: _isProductInLines,
+                      ),
+                      const SizedBox(height: 12),
                       if (_lines.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
