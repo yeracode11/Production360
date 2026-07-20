@@ -213,7 +213,8 @@ abstract final class AppStrings {
   static const String nomenclatureProducts = 'Товары';
   static const String nomenclatureGlobalSearch = 'Поиск номенклатуры';
   static const String nomenclatureEmptyGroup =
-      'В этой группе пока нет подгрупп и товаров';
+      'Нет подгрупп или товаров для мобилки в этой группе. '
+      'Проверьте галочку «Показывать в мобилке» в 1С или воспользуйтесь поиском';
   static const String transfersSearchPrompt =
       'Найдите товар по названию, коду или артикулу';
 

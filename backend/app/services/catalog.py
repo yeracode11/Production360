@@ -9,12 +9,25 @@ from app.models import Product, Unit
 
 ACTIVE_PRODUCT_COMMENT = "q_active"
 STOCK_PRODUCT_TYPE = "Запас"
+# 1С часто шлёт «пустого родителя» как нулевой UUID вместо null.
+EMPTY_PARENT_UUID = uuid.UUID(int=0)
 
 
 def _parse_uuid(value: Any) -> uuid.UUID | None:
     if value is None or value == "":
         return None
     return uuid.UUID(str(value))
+
+
+def _parse_parent_id(value: Any) -> uuid.UUID | None:
+    parent_id = _parse_uuid(value)
+    if parent_id == EMPTY_PARENT_UUID:
+        return None
+    return parent_id
+
+
+def _is_root_parent(parent_id: uuid.UUID | None) -> bool:
+    return parent_id is None or parent_id == EMPTY_PARENT_UUID
 
 
 def _parse_bool(value: Any, default: bool = False) -> bool:
@@ -98,7 +111,7 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
 
         values = {
             "id": product_id,
-            "parent_id": _parse_uuid(raw.get("Родитель")),
+            "parent_id": _parse_parent_id(raw.get("Родитель")),
             "is_group": _parse_bool(raw.get("ЭтоГруппа")),
             "code": str(raw.get("Код") or "").strip(),
             "name": str(raw.get("Наименование") or "").strip(),
@@ -243,7 +256,12 @@ async def list_products(
         stmt = stmt.where(Product.is_group.is_(False))
 
     if parent_is_root:
-        stmt = stmt.where(Product.parent_id.is_(None))
+        stmt = stmt.where(
+            or_(
+                Product.parent_id.is_(None),
+                Product.parent_id == EMPTY_PARENT_UUID,
+            )
+        )
     elif parent_id is not None:
         stmt = stmt.where(Product.parent_id == parent_id)
 
