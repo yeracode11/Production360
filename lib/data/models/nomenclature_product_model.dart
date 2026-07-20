@@ -7,6 +7,8 @@ class NomenclatureProductModel extends NomenclatureProduct {
     required super.name,
     required super.code,
     required super.unit,
+    super.isGroup,
+    super.parentId,
     super.showInMobileApp,
     super.usagePlaces,
   });
@@ -17,6 +19,8 @@ class NomenclatureProductModel extends NomenclatureProduct {
       name: json['name'] as String,
       code: json['code'] as String? ?? '',
       unit: json['edIzm'] as String? ?? '',
+      isGroup: parseOneCBool(json['is_group'] ?? json['isGroup'], defaultValue: false),
+      parentId: _nullableString(json['parentId'] ?? json['parent_id']),
       showInMobileApp: parseOneCBool(
         json['showInMobileApp'] ?? json['ОтображатьВМобильнымПриложении'],
         defaultValue: false,

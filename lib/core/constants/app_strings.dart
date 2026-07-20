@@ -208,6 +208,12 @@ abstract final class AppStrings {
 
   // Nomenclature search (transfers create)
   static const String nomenclatureSearchHint = 'Поиск номенклатуры';
+  static const String nomenclatureRootGroups = 'Группы номенклатуры';
+  static const String nomenclatureGroups = 'Группы';
+  static const String nomenclatureProducts = 'Товары';
+  static const String nomenclatureGlobalSearch = 'Поиск номенклатуры';
+  static const String nomenclatureEmptyGroup =
+      'В этой группе пока нет подгрупп и товаров';
   static const String transfersSearchPrompt =
       'Найдите товар по названию, коду или артикулу';
 

@@ -5,8 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../domain/entities/nomenclature_product.dart';
 import 'nomenclature_picker.dart';
 
-/// Полноэкранный поиск и выбор номенклатуры.
-class SelectNomenclatureScreen extends StatelessWidget {
+/// Полноэкранный выбор номенклатуры: группы → товары + глобальный поиск.
+class SelectNomenclatureScreen extends StatefulWidget {
   const SelectNomenclatureScreen({
     super.key,
     required this.organizationId,
@@ -17,18 +17,30 @@ class SelectNomenclatureScreen extends StatelessWidget {
   final bool Function(String productId) isProductAdded;
 
   @override
+  State<SelectNomenclatureScreen> createState() =>
+      _SelectNomenclatureScreenState();
+}
+
+class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
+  String _title = AppStrings.nomenclatureRootGroups;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.addProduct)),
+      appBar: AppBar(title: Text(_title)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: NomenclaturePicker(
-            organizationId: organizationId,
+            organizationId: widget.organizationId,
+            onTitleChanged: (title) {
+              if (_title == title) return;
+              setState(() => _title = title);
+            },
             onProductSelected: (product) {
               Navigator.of(context).pop(product);
             },
-            isProductAdded: isProductAdded,
+            isProductAdded: widget.isProductAdded,
           ),
         ),
       ),

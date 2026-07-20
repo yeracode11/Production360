@@ -29,6 +29,7 @@ class ProductOut(BaseModel):
     edIzm: str | None = None
     unit_id: UUID | None = None
     is_group: bool
+    parentId: str | None = None
     is_deleted: bool
     is_active: bool
     product_type: str | None = None

@@ -1,4 +1,5 @@
 from typing import Any
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,22 +52,44 @@ async def get_units(
 async def search_nomenclature(
     q: str | None = Query(
         default=None,
-        description="Поиск по названию, коду, артикулу. Без q — список батчами",
+        description="Глобальный поиск по названию, коду, артикулу",
     ),
     organizationID: str = Query(
         ...,
         min_length=1,
         description="UUID организации — фильтр по МестаИспользования",
     ),
+    parentID: str | None = Query(
+        default=None,
+        description="UUID родительской группы. Без parentID — корневой уровень",
+    ),
+    groupsOnly: bool = Query(
+        default=False,
+        description="true — только папки (is_group), false — товары в группе",
+    ),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db),
 ) -> ProductListResponse:
-    """Запас, q_active, show_in_mobile_app, организация из usagePlaces."""
+    """Группы по parent_id/is_group или глобальный поиск товаров (q)."""
+    parent_uuid: uuid.UUID | None = None
+    parent_is_root = False
+    if q is None or not q.strip():
+        if parentID is None or not parentID.strip():
+            parent_is_root = True
+        else:
+            try:
+                parent_uuid = uuid.UUID(parentID.strip())
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid parentID") from exc
+
     products, total = await list_nomenclature_search(
         session,
         search=q,
         organization_id=organizationID,
+        parent_id=parent_uuid,
+        parent_is_root=parent_is_root,
+        groups_only=groupsOnly,
         limit=limit,
         offset=offset,
     )

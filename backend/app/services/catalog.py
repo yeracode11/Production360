@@ -164,14 +164,48 @@ async def list_nomenclature_search(
     *,
     search: str | None = None,
     organization_id: str,
+    parent_id: uuid.UUID | None = None,
+    parent_is_root: bool = False,
+    groups_only: bool = False,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
-    """Список/поиск для мобилки: Запас, активные, org из МестаИспользования."""
+    """Список/поиск для мобилки.
+
+    С ``q`` — глобальный поиск товаров (игнорирует parent/groups).
+    С ``groups_only`` — папки номенклатуры по ``parent_id`` / корню.
+    Иначе — товары-запасы внутри выбранной группы.
+    """
+    if search and search.strip():
+        return await list_products(
+            session,
+            search=search,
+            organization_id=organization_id,
+            active_only=True,
+            include_groups=False,
+            include_deleted=False,
+            stock_only=True,
+            mobile_only=True,
+            limit=limit,
+            offset=offset,
+        )
+
+    if groups_only:
+        return await list_products(
+            session,
+            parent_id=parent_id,
+            parent_is_root=parent_is_root,
+            groups_only=True,
+            include_deleted=False,
+            limit=limit,
+            offset=offset,
+        )
+
     return await list_products(
         session,
-        search=search,
         organization_id=organization_id,
+        parent_id=parent_id,
+        parent_is_root=parent_is_root,
         active_only=True,
         include_groups=False,
         include_deleted=False,
@@ -187,6 +221,9 @@ async def list_products(
     *,
     search: str | None = None,
     organization_id: str | None = None,
+    parent_id: uuid.UUID | None = None,
+    parent_is_root: bool = False,
+    groups_only: bool = False,
     active_only: bool = True,
     include_groups: bool = False,
     include_deleted: bool = False,
@@ -199,8 +236,17 @@ async def list_products(
 
     if not include_deleted:
         stmt = stmt.where(Product.is_deleted.is_(False))
-    if not include_groups:
+
+    if groups_only:
+        stmt = stmt.where(Product.is_group.is_(True))
+    elif not include_groups:
         stmt = stmt.where(Product.is_group.is_(False))
+
+    if parent_is_root:
+        stmt = stmt.where(Product.parent_id.is_(None))
+    elif parent_id is not None:
+        stmt = stmt.where(Product.parent_id == parent_id)
+
     if active_only:
         stmt = stmt.where(Product.comment == ACTIVE_PRODUCT_COMMENT)
     if stock_only:
@@ -251,6 +297,7 @@ def product_to_out(product: Product) -> dict[str, Any]:
         "edIzm": unit_short,
         "unit_id": product.unit_id,
         "is_group": product.is_group,
+        "parentId": str(product.parent_id) if product.parent_id else None,
         "is_deleted": product.is_deleted,
         "is_active": product.comment == ACTIVE_PRODUCT_COMMENT and not product.is_deleted,
         "product_type": product.product_type,

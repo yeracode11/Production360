@@ -7,6 +7,8 @@ class NomenclatureProduct extends Equatable {
     required this.name,
     required this.code,
     required this.unit,
+    this.isGroup = false,
+    this.parentId,
     this.showInMobileApp = true,
     this.usagePlaces = const [],
   });
@@ -15,6 +17,8 @@ class NomenclatureProduct extends Equatable {
   final String name;
   final String code;
   final String unit;
+  final bool isGroup;
+  final String? parentId;
   final bool showInMobileApp;
   final List<NomenclatureUsagePlace> usagePlaces;
 
@@ -24,6 +28,8 @@ class NomenclatureProduct extends Equatable {
         name,
         code,
         unit,
+        isGroup,
+        parentId,
         showInMobileApp,
         usagePlaces,
       ];

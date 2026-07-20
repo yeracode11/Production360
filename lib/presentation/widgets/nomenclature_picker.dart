@@ -10,19 +10,28 @@ import '../../core/utils/order_item_display.dart';
 import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 
-/// Поиск номенклатуры для перемещения, списания, инвентаризации, производства.
+class _BrowseLevel {
+  const _BrowseLevel({this.id, this.name = AppStrings.nomenclatureRootGroups});
+
+  final String? id;
+  final String name;
+}
+
+/// Иерархический выбор номенклатуры: группы → подгруппы → товары + глобальный поиск.
 class NomenclaturePicker extends StatefulWidget {
   const NomenclaturePicker({
     super.key,
     required this.organizationId,
     required this.onProductSelected,
     required this.isProductAdded,
+    this.onTitleChanged,
     this.batchSize = 30,
   });
 
   final String organizationId;
   final ValueChanged<NomenclatureProduct> onProductSelected;
   final bool Function(String productId) isProductAdded;
+  final ValueChanged<String>? onTitleChanged;
   final int batchSize;
 
   @override
@@ -31,21 +40,34 @@ class NomenclaturePicker extends StatefulWidget {
 
 class _NomenclaturePickerState extends State<NomenclaturePicker> {
   final _searchController = TextEditingController();
-  final List<NomenclatureProduct> _items = [];
+  final List<NomenclatureProduct> _groups = [];
+  final List<NomenclatureProduct> _products = [];
+  final List<NomenclatureProduct> _searchItems = [];
+  final List<_BrowseLevel> _breadcrumb = [_BrowseLevel()];
+
   Timer? _searchDebounce;
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
-  bool _hasMore = false;
-  int _total = 0;
-  int _nextOffset = 0;
+  bool _hasMoreProducts = false;
+  int _productsTotal = 0;
+  int _productsOffset = 0;
+  int _searchTotal = 0;
+  int _searchOffset = 0;
+  bool _searchHasMore = false;
   String? _error;
   String _activeQuery = '';
+
+  bool get _isSearchMode => _activeQuery.isNotEmpty;
+
+  String? get _currentParentId =>
+      _breadcrumb.isEmpty ? null : _breadcrumb.last.id;
 
   @override
   void initState() {
     super.initState();
-    _loadInitial();
+    _notifyTitle();
+    _loadBrowse();
   }
 
   @override
@@ -55,45 +77,81 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
     super.dispose();
   }
 
-  Future<void> _loadInitial() async {
+  void _notifyTitle() {
+    widget.onTitleChanged?.call(
+      _isSearchMode
+          ? AppStrings.nomenclatureGlobalSearch
+          : _breadcrumb.last.name,
+    );
+  }
+
+  Future<void> _loadBrowse() async {
     setState(() {
       _isLoading = true;
       _error = null;
-      _items.clear();
-      _nextOffset = 0;
-      _hasMore = false;
-      _total = 0;
+      _groups.clear();
+      _products.clear();
+      _productsOffset = 0;
+      _hasMoreProducts = false;
+      _productsTotal = 0;
     });
 
     try {
-      final page = await sl<CatalogRepository>().searchNomenclature(
+      final repo = sl<CatalogRepository>();
+      final groupsFuture = repo.listNomenclatureGroups(
         organizationId: widget.organizationId,
-        query: _activeQuery.isEmpty ? null : _activeQuery,
+        parentId: _currentParentId,
+      );
+
+      if (_currentParentId == null) {
+        final groupsPage = await groupsFuture;
+        if (!mounted) return;
+        setState(() {
+          _groups
+            ..clear()
+            ..addAll(groupsPage.items.where((item) => item.isGroup));
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final productsFuture = repo.listNomenclatureProducts(
+        organizationId: widget.organizationId,
+        parentId: _currentParentId!,
         limit: widget.batchSize,
         offset: 0,
       );
+
+      final results = await Future.wait([groupsFuture, productsFuture]);
       if (!mounted) return;
+
+      final groupsPage = results[0];
+      final productsPage = results[1];
+
       setState(() {
-        _items
+        _groups
           ..clear()
-          ..addAll(page.items);
-        _total = page.total;
-        _nextOffset = page.nextOffset;
-        _hasMore = page.hasMore;
+          ..addAll(groupsPage.items.where((item) => item.isGroup));
+        _products
+          ..clear()
+          ..addAll(productsPage.items.where((item) => !item.isGroup));
+        _productsTotal = productsPage.total;
+        _productsOffset = productsPage.nextOffset;
+        _hasMoreProducts = productsPage.hasMore;
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = exceptionMessage(e);
-        _items.clear();
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _loadMore() async {
-    if (_isLoadingMore || !_hasMore) return;
+  Future<void> _loadMoreProducts() async {
+    final parentId = _currentParentId;
+    if (_isLoadingMore || !_hasMoreProducts || parentId == null) return;
 
     setState(() {
       _isLoadingMore = true;
@@ -101,18 +159,18 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
     });
 
     try {
-      final page = await sl<CatalogRepository>().searchNomenclature(
+      final page = await sl<CatalogRepository>().listNomenclatureProducts(
         organizationId: widget.organizationId,
-        query: _activeQuery.isEmpty ? null : _activeQuery,
+        parentId: parentId,
         limit: widget.batchSize,
-        offset: _nextOffset,
+        offset: _productsOffset,
       );
       if (!mounted) return;
       setState(() {
-        _items.addAll(page.items);
-        _total = page.total;
-        _nextOffset = page.nextOffset;
-        _hasMore = page.hasMore;
+        _products.addAll(page.items.where((item) => !item.isGroup));
+        _productsTotal = page.total;
+        _productsOffset = page.nextOffset;
+        _hasMoreProducts = page.hasMore;
         _isLoadingMore = false;
       });
     } catch (e) {
@@ -122,6 +180,73 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
         _isLoadingMore = false;
       });
     }
+  }
+
+  Future<void> _loadSearch({required bool initial}) async {
+    if (initial) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _searchItems.clear();
+        _searchOffset = 0;
+        _searchTotal = 0;
+        _searchHasMore = false;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final page = await sl<CatalogRepository>().searchNomenclature(
+        organizationId: widget.organizationId,
+        query: _activeQuery,
+        limit: widget.batchSize,
+        offset: initial ? 0 : _searchOffset,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (initial) {
+          _searchItems
+            ..clear()
+            ..addAll(page.items.where((item) => !item.isGroup));
+        } else {
+          _searchItems.addAll(page.items.where((item) => !item.isGroup));
+        }
+        _searchTotal = page.total;
+        _searchOffset = page.nextOffset;
+        _searchHasMore = page.hasMore;
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = exceptionMessage(e);
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  void _openGroup(NomenclatureProduct group) {
+    if (!group.isGroup) return;
+    setState(() {
+      _breadcrumb.add(_BrowseLevel(id: group.id, name: group.name));
+    });
+    _notifyTitle();
+    _loadBrowse();
+  }
+
+  void _goBack() {
+    if (_breadcrumb.length <= 1) return;
+    setState(() {
+      _breadcrumb.removeLast();
+    });
+    _notifyTitle();
+    _loadBrowse();
   }
 
   void _onSearchChanged(String value) {
@@ -131,7 +256,12 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       if (_activeQuery == query) return;
       _activeQuery = query;
-      _loadInitial();
+      _notifyTitle();
+      if (query.isEmpty) {
+        _loadBrowse();
+      } else {
+        _loadSearch(initial: true);
+      }
     });
   }
 
@@ -141,12 +271,14 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
     setState(() {});
     if (_activeQuery.isEmpty) return;
     _activeQuery = '';
-    _loadInitial();
+    _notifyTitle();
+    _loadBrowse();
   }
 
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text.trim();
+    final listChildren = _isSearchMode ? _buildSearchList() : _buildBrowseList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -184,6 +316,21 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
             ),
           ),
         ),
+        if (!_isSearchMode && _breadcrumb.length > 1) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _goBack,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: Text(_breadcrumb[_breadcrumb.length - 2].name),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.turquoiseDark,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+            ),
+          ),
+        ],
         if (_isLoading) ...[
           const SizedBox(height: 8),
           const ClipRRect(
@@ -205,27 +352,33 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
                   ),
                 ),
                 TextButton(
-                  onPressed: _loadInitial,
+                  onPressed: _isSearchMode
+                      ? () => _loadSearch(initial: true)
+                      : _loadBrowse,
                   child: const Text(AppStrings.pullToRefresh),
                 ),
               ],
             ),
           ),
         ],
-        if (!_isLoading && _error == null && _items.isEmpty) ...[
+        if (!_isLoading && _error == null && listChildren.isEmpty) ...[
           const SizedBox(height: 8),
           _Panel(
             child: Row(
               children: [
                 Icon(
-                  Icons.inventory_2_outlined,
+                  _isSearchMode
+                      ? Icons.search_off_outlined
+                      : Icons.folder_open_outlined,
                   color: AppColors.textSecondary,
                   size: 22,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    AppStrings.nomenclatureNoResults,
+                    _isSearchMode
+                        ? AppStrings.nomenclatureNoResults
+                        : AppStrings.nomenclatureEmptyGroup,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -235,76 +388,218 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
             ),
           ),
         ],
-        if (_items.isNotEmpty) ...[
+        if (listChildren.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Text(
-              _activeQuery.isEmpty
-                  ? '${AppStrings.nomenclatureShown}: ${_items.length}'
-                      '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}'
-                  : '${AppStrings.searchResultsFound}: ${_items.length}'
-                      '${_total > 0 ? ' ${AppStrings.nomenclatureOf} $_total' : ''}',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.turquoiseDark,
-                    fontWeight: FontWeight.w600,
-                  ),
+          if (_isSearchMode)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+              child: Text(
+                '${AppStrings.searchResultsFound}: ${_searchItems.length}'
+                '${_searchTotal > 0 ? ' ${AppStrings.nomenclatureOf} $_searchTotal' : ''}',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.turquoiseDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          Expanded(
+            child: _Panel(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: listChildren,
+              ),
             ),
           ),
+        ] else if (!_isLoading && _error == null) ...[
+          const Expanded(child: SizedBox.shrink()),
         ],
-        Expanded(
-          child: _items.isEmpty
-              ? const SizedBox.shrink()
-              : _Panel(
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: _items.length + (_hasMore ? 1 : 0),
-                    separatorBuilder: (_, index) {
-                      if (index < _items.length - 1 ||
-                          (_hasMore && index == _items.length - 1)) {
-                        return Divider(
-                          height: 1,
-                          color: AppColors.surfaceMuted,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                    itemBuilder: (context, index) {
-                      if (index == _items.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: _isLoadingMore ? null : _loadMore,
-                              child: _isLoadingMore
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      '${AppStrings.loadMoreNomenclature}'
-                                      ' (${widget.batchSize})',
-                                    ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final product = _items[index];
-                      return _ProductTile(
-                        product: product,
-                        isAdded: widget.isProductAdded(product.id),
-                        onTap: () => widget.onProductSelected(product),
-                      );
-                    },
-                  ),
-                ),
-        ),
       ],
+    );
+  }
+
+  List<Widget> _buildBrowseList() {
+    final children = <Widget>[];
+
+    if (_groups.isNotEmpty) {
+      children.add(_SectionHeader(title: AppStrings.nomenclatureGroups));
+      for (var i = 0; i < _groups.length; i++) {
+        if (i > 0) {
+          children.add(Divider(height: 1, color: AppColors.surfaceMuted));
+        }
+        children.add(_GroupTile(
+          group: _groups[i],
+          onTap: () => _openGroup(_groups[i]),
+        ));
+      }
+    }
+
+    if (_currentParentId != null) {
+      if (_products.isNotEmpty) {
+        if (children.isNotEmpty) {
+          children.add(const SizedBox(height: 8));
+        }
+        children.add(_SectionHeader(title: AppStrings.nomenclatureProducts));
+        for (var i = 0; i < _products.length; i++) {
+          if (i > 0) {
+            children.add(Divider(height: 1, color: AppColors.surfaceMuted));
+          }
+          final product = _products[i];
+          children.add(_ProductTile(
+            product: product,
+            isAdded: widget.isProductAdded(product.id),
+            onTap: () => widget.onProductSelected(product),
+          ));
+        }
+        if (_hasMoreProducts) {
+          children.add(const SizedBox(height: 8));
+          children.add(
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _isLoadingMore ? null : _loadMoreProducts,
+                child: _isLoadingMore
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        '${AppStrings.loadMoreNomenclature} (${widget.batchSize})',
+                      ),
+              ),
+            ),
+          );
+        } else if (_productsTotal > 0) {
+          children.add(const SizedBox(height: 8));
+          children.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: Text(
+                '${AppStrings.nomenclatureShown}: ${_products.length}'
+                ' ${AppStrings.nomenclatureOf} $_productsTotal',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.turquoiseDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    return children;
+  }
+
+  List<Widget> _buildSearchList() {
+    final children = <Widget>[];
+    for (var i = 0; i < _searchItems.length; i++) {
+      if (i > 0) {
+        children.add(Divider(height: 1, color: AppColors.surfaceMuted));
+      }
+      final product = _searchItems[i];
+      children.add(_ProductTile(
+        product: product,
+        isAdded: widget.isProductAdded(product.id),
+        onTap: () => widget.onProductSelected(product),
+      ));
+    }
+
+    if (_searchHasMore) {
+      children.add(const SizedBox(height: 8));
+      children.add(
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _isLoadingMore ? null : () => _loadSearch(initial: false),
+            child: _isLoadingMore
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    '${AppStrings.loadMoreNomenclature} (${widget.batchSize})',
+                  ),
+          ),
+        ),
+      );
+    }
+
+    return children;
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppColors.turquoiseDark,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+  }
+}
+
+class _GroupTile extends StatelessWidget {
+  const _GroupTile({required this.group, required this.onTap});
+
+  final NomenclatureProduct group;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.surfaceMuted),
+                ),
+                child: Icon(
+                  Icons.folder_outlined,
+                  size: 20,
+                  color: AppColors.turquoiseDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  group.name,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
+                      ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
