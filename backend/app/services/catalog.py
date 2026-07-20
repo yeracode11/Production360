@@ -22,7 +22,12 @@ def _parse_bool(value: Any, default: bool = False) -> bool:
         return value
     if value is None:
         return default
-    return str(value).lower() in {"1", "true", "yes"}
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "да"}:
+        return True
+    if normalized in {"0", "false", "no", "нет"}:
+        return False
+    return default
 
 
 async def sync_units(session: AsyncSession, items: list[dict[str, Any]]) -> int:
@@ -49,6 +54,7 @@ async def sync_units(session: AsyncSession, items: list[dict[str, Any]]) -> int:
                 "full_name": values["full_name"],
                 "predefined_name": values["predefined_name"],
                 "is_deleted": values["is_deleted"],
+                "updated_at": func.now(),
             },
         )
         await session.execute(stmt)
@@ -87,6 +93,9 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
         if product_id is None:
             continue
 
+        has_mobile_flag = "ОтображатьВМобильнымПриложении" in raw
+        has_usage_places = "МестаИспользования" in raw
+
         values = {
             "id": product_id,
             "parent_id": _parse_uuid(raw.get("Родитель")),
@@ -104,28 +113,36 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             "show_in_mobile_app": _parse_bool(
                 raw.get("ОтображатьВМобильнымПриложении"),
                 default=False,
-            ),
-            "usage_places": _parse_usage_places(raw.get("МестаИспользования")),
+            )
+            if has_mobile_flag
+            else False,
+            "usage_places": _parse_usage_places(raw.get("МестаИспользования"))
+            if has_usage_places
+            else None,
         }
+        update_fields = {
+            "parent_id": values["parent_id"],
+            "is_group": values["is_group"],
+            "code": values["code"],
+            "name": values["name"],
+            "full_name": values["full_name"],
+            "article": values["article"],
+            "unit_id": values["unit_id"],
+            "product_type": values["product_type"],
+            "barcode": values["barcode"],
+            "comment": values["comment"],
+            "predefined_name": values["predefined_name"],
+            "is_deleted": values["is_deleted"],
+            "updated_at": func.now(),
+        }
+        if has_mobile_flag:
+            update_fields["show_in_mobile_app"] = values["show_in_mobile_app"]
+        if has_usage_places:
+            update_fields["usage_places"] = values["usage_places"]
         stmt = insert(Product).values(**values)
         stmt = stmt.on_conflict_do_update(
             index_elements=[Product.id],
-            set_={
-                "parent_id": values["parent_id"],
-                "is_group": values["is_group"],
-                "code": values["code"],
-                "name": values["name"],
-                "full_name": values["full_name"],
-                "article": values["article"],
-                "unit_id": values["unit_id"],
-                "product_type": values["product_type"],
-                "barcode": values["barcode"],
-                "comment": values["comment"],
-                "predefined_name": values["predefined_name"],
-                "is_deleted": values["is_deleted"],
-                "show_in_mobile_app": values["show_in_mobile_app"],
-                "usage_places": values["usage_places"],
-            },
+            set_=update_fields,
         )
         await session.execute(stmt)
         upserted += 1
