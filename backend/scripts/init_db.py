@@ -2,6 +2,12 @@
 """Создать таблицы units и products в PostgreSQL."""
 
 import asyncio
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.database import engine
 from app.models import CatalogVisibleGroup, Product, Unit  # noqa: F401 — регистрация моделей
