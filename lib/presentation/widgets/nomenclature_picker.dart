@@ -317,6 +317,10 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
   Widget build(BuildContext context) {
     final query = _searchController.text.trim();
     final listChildren = _isSearchMode ? _buildSearchList() : _buildBrowseList();
+    final showEmptyState = !_isLoading &&
+        !_isLoadingProducts &&
+        _error == null &&
+        listChildren.isEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -406,61 +410,65 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
             ),
           ),
         ],
-        if (!_isLoading &&
-            !_isLoadingProducts &&
-            _error == null &&
-            listChildren.isEmpty) ...[
-          const SizedBox(height: 8),
-          _Panel(
-            child: Row(
-              children: [
-                Icon(
-                  _isSearchMode
-                      ? Icons.search_off_outlined
-                      : Icons.folder_open_outlined,
-                  color: AppColors.textSecondary,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _isSearchMode
-                        ? AppStrings.nomenclatureNoResults
-                        : AppStrings.nomenclatureEmptyGroup,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+        const SizedBox(height: 8),
+        Expanded(
+          child: showEmptyState
+              ? _Panel(
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isSearchMode
+                            ? Icons.search_off_outlined
+                            : Icons.folder_open_outlined,
+                        color: AppColors.textSecondary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _isSearchMode
+                              ? AppStrings.nomenclatureNoResults
+                              : AppStrings.nomenclatureEmptyGroup,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                         ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (listChildren.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          if (_isSearchMode)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-              child: Text(
-                '${AppStrings.searchResultsFound}: ${_searchItems.length}'
-                '${_searchTotal > 0 ? ' ${AppStrings.nomenclatureOf} $_searchTotal' : ''}',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.turquoiseDark,
-                      fontWeight: FontWeight.w600,
+                )
+              : listChildren.isEmpty
+                  ? const SizedBox.shrink()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_isSearchMode)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                            child: Text(
+                              '${AppStrings.searchResultsFound}: ${_searchItems.length}'
+                              '${_searchTotal > 0 ? ' ${AppStrings.nomenclatureOf} $_searchTotal' : ''}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: AppColors.turquoiseDark,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                        Expanded(
+                          child: _Panel(
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              children: listChildren,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-              ),
-            ),
-          Expanded(
-            child: _Panel(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: listChildren,
-              ),
-            ),
-          ),
-        ] else if (!_isLoading && _error == null) ...[
-          const Expanded(child: SizedBox.shrink()),
-        ],
+        ),
       ],
     );
   }

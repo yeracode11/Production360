@@ -1,8 +1,8 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import delete, exists, func, or_, select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import Text, cast, delete, exists, func, or_, select
+from sqlalchemy.dialects.postgresql import ARRAY, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CatalogVisibleGroup, Product, Unit
@@ -65,7 +65,7 @@ def _organization_filter(organization_id: str | None):
         return None
     return or_(
         Product.organization_ids.is_(None),
-        Product.organization_ids.contains([org_id]),
+        Product.organization_ids.contains(cast([org_id], ARRAY(Text))),
     )
 
 

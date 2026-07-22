@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -75,7 +75,7 @@ class Product(Base):
     )
     usage_places: Mapped[list | None] = mapped_column(JSON, nullable=True)
     organization_ids: Mapped[list[str] | None] = mapped_column(
-        ARRAY(String(64)), nullable=True
+        ARRAY(Text), nullable=True
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

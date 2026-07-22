@@ -105,20 +105,22 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: NomenclaturePicker(
-            organizationId: widget.organizationId,
-            onTitleChanged: (title) {
-              if (_title == title) return;
-              setState(() => _title = title);
-            },
-            onProductSelected: _handleProductSelected,
-            onProductRemoved: _handleProductRemoved,
-            isProductAdded: _isProductAdded,
-            productQuantity: _resolveQuantity,
-            onQuantityChanged: widget.onQuantityChanged == null
-                ? null
-                : _handleQuantityChanged,
-            allowZeroQuantity: widget.allowZeroQuantity,
+          child: SizedBox.expand(
+            child: NomenclaturePicker(
+              organizationId: widget.organizationId,
+              onTitleChanged: (title) {
+                if (_title == title) return;
+                setState(() => _title = title);
+              },
+              onProductSelected: _handleProductSelected,
+              onProductRemoved: _handleProductRemoved,
+              isProductAdded: _isProductAdded,
+              productQuantity: _resolveQuantity,
+              onQuantityChanged: widget.onQuantityChanged == null
+                  ? null
+                  : _handleQuantityChanged,
+              allowZeroQuantity: widget.allowZeroQuantity,
+            ),
           ),
         ),
       ),
