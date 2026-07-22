@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/config/one_c_config.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/one_c_json.dart';
+import '../../core/utils/document_author_support.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/create_transfer_request.dart';
 import '../../domain/entities/create_transfer_result.dart';
@@ -108,7 +109,12 @@ class TransferRepositoryImpl implements TransferRepository {
       if (data == null) {
         throw Exception('Пустой ответ от 1С');
       }
-      return CreateTransferResultModel.from1CJson(data);
+      final result = CreateTransferResultModel.from1CJson(data);
+      await DocumentAuthorSupport.rememberCreatedDocument(
+        documentId: result.id,
+        responseJson: data,
+      );
+      return result;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

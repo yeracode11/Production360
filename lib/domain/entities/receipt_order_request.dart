@@ -22,7 +22,7 @@ class ReceiptOrderItemRequest extends Equatable {
   });
 
   final String productId;
-  final int shipped;
+  final String shipped;
   final String received;
 
   @override

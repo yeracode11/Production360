@@ -1,3 +1,4 @@
+import '../../core/utils/one_c_author.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/inventory_document.dart';
 
@@ -13,11 +14,14 @@ class InventoryDocumentModel extends InventoryDocument {
     required super.warehouseName,
     super.comment,
     super.dateDisplay,
+    super.author,
+    super.authorLogin,
     super.items = const [],
   });
 
   factory InventoryDocumentModel.from1CListJson(Map<String, dynamic> json) {
     final dateRaw = json['Дата'] as String;
+    final authorFields = OneCAuthorFields.parse(json);
     return InventoryDocumentModel(
       id: json['Ссылка'] as String,
       number: json['Номер'] as String,
@@ -29,12 +33,15 @@ class InventoryDocumentModel extends InventoryDocument {
       warehouseId: json['СкладСсылка'] as String,
       warehouseName: json['СкладНаименование'] as String,
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
     );
   }
 
   factory InventoryDocumentModel.from1CDetailJson(Map<String, dynamic> json) {
     final itemsJson = json['Товары'] as List<dynamic>? ?? [];
     final dateRaw = json['Дата'] as String?;
+    final authorFields = OneCAuthorFields.parse(json);
 
     return InventoryDocumentModel(
       id: json['Ссылка'] as String,
@@ -47,6 +54,8 @@ class InventoryDocumentModel extends InventoryDocument {
       warehouseId: json['СкладСсылка'] as String? ?? '',
       warehouseName: json['СкладНаименование'] as String? ?? '',
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
       items: itemsJson
           .map(
             (e) => InventoryDocumentItemModel.from1CJson(

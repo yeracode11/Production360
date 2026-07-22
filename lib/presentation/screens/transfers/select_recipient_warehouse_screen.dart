@@ -10,10 +10,12 @@ class SelectRecipientWarehouseScreen extends StatefulWidget {
     super.key,
     required this.warehouses,
     this.selected,
+    this.title = AppStrings.recipientWarehouse,
   });
 
   final List<TransferWarehouseOption> warehouses;
   final TransferWarehouseOption? selected;
+  final String title;
 
   @override
   State<SelectRecipientWarehouseScreen> createState() =>
@@ -44,7 +46,7 @@ class _SelectRecipientWarehouseScreenState
     final results = _filtered;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.recipientWarehouse)),
+      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
           Padding(

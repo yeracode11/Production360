@@ -34,9 +34,10 @@ def _mobile_child_exists_sql(parent_column: str, organization_id: str | None) ->
     org_id = (organization_id or "").strip()
     org_clause = (
         "child.usage_places IS NULL "
-        "OR COALESCE(jsonb_array_length(child.usage_places), 0) = 0 "
+        "OR jsonb_typeof(child.usage_places::jsonb) <> 'array' "
+        "OR COALESCE(jsonb_array_length(child.usage_places::jsonb), 0) = 0 "
         "OR EXISTS ("
-        "  SELECT 1 FROM jsonb_array_elements(child.usage_places) elem "
+        "  SELECT 1 FROM jsonb_array_elements(child.usage_places::jsonb) elem "
         "  WHERE elem->>'type' = 'organization' "
         "  AND lower(elem->>'id') = lower(:org_id)"
         ")"
@@ -137,6 +138,10 @@ async def sync_units(session: AsyncSession, items: list[dict[str, Any]]) -> int:
 
 
 def _parse_usage_places(raw: Any) -> list[dict[str, str]]:
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        raw = [raw]
     if not isinstance(raw, list):
         return []
 
@@ -339,10 +344,13 @@ async def list_products(
         stmt = stmt.where(
             or_(
                 Product.usage_places.is_(None),
-                text("COALESCE(jsonb_array_length(products.usage_places), 0) = 0"),
                 text(
-                    "EXISTS ("
-                    "SELECT 1 FROM jsonb_array_elements(products.usage_places) AS elem "
+                    "jsonb_typeof(products.usage_places::jsonb) <> 'array' "
+                    "OR COALESCE(jsonb_array_length(products.usage_places::jsonb), 0) = 0"
+                ),
+                text(
+                    "jsonb_typeof(products.usage_places::jsonb) = 'array' AND EXISTS ("
+                    "SELECT 1 FROM jsonb_array_elements(products.usage_places::jsonb) AS elem "
                     "WHERE elem->>'type' = 'organization' "
                     "AND lower(elem->>'id') = lower(:org_id)"
                     ")"

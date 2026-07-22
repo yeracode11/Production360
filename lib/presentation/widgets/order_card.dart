@@ -4,6 +4,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/order_request.dart';
 import '../screens/orders/order_details_screen.dart';
+import 'accompanying_product_label.dart';
 
 /// Card displaying order summary in list views.
 class OrderCard extends StatelessWidget {
@@ -60,9 +61,31 @@ class OrderCard extends StatelessWidget {
               ),
               if (order.orderType != null) ...[
                 const SizedBox(height: 4),
-                _InfoRow(
-                  label: AppStrings.orderType,
-                  value: order.orderType!,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${AppStrings.orderType}: ',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.deepBrownLight,
+                          ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.orderType!,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          if (order.orderTypeForInfo) ...[
+                            const SizedBox(height: 2),
+                            const AccompanyingProductLabel(),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
               const SizedBox(height: 4),

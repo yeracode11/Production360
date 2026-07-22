@@ -14,6 +14,7 @@ class OrderTypeData extends Equatable {
     required this.warehouseName,
     required this.products,
     required this.dates,
+    this.forInfo = false,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class OrderTypeData extends Equatable {
   final String warehouseName;
   final List<OrderTypeProduct> products;
   final List<DeliveryDateOption> dates;
+  final bool forInfo;
 
   @override
   List<Object?> get props => [
@@ -35,5 +37,6 @@ class OrderTypeData extends Equatable {
         warehouseName,
         products,
         dates,
+        forInfo,
       ];
 }

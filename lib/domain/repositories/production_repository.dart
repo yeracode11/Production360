@@ -1,6 +1,7 @@
 import '../entities/create_production_request.dart';
 import '../entities/create_production_result.dart';
 import '../entities/production_document.dart';
+import '../entities/transfer_predata.dart';
 
 /// Документы производства (1С /mobile/proizvodstvo).
 abstract class ProductionRepository {
@@ -10,6 +11,8 @@ abstract class ProductionRepository {
   });
 
   Future<ProductionDocument?> getProductionById(String productionId);
+
+  Future<TransferPredata> fetchPredata({required String warehouseId});
 
   Future<CreateProductionResult> createProduction(
     CreateProductionRequest request,

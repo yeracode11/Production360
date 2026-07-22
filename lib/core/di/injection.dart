@@ -23,6 +23,7 @@ import '../../domain/services/force_update_notifier.dart';
 import '../network/app_version_provider.dart';
 import '../network/dio_client.dart';
 import '../storage/auth_session_storage.dart';
+import '../storage/document_author_storage.dart';
 import '../storage/selected_warehouse_storage.dart';
 
 final GetIt sl = GetIt.instance;
@@ -34,6 +35,9 @@ Future<void> configureDependencies() async {
 
   final authSessionStorage = await AuthSessionStorage.create();
   sl.registerSingleton<AuthSessionStorage>(authSessionStorage);
+
+  final documentAuthorStorage = await DocumentAuthorStorage.create();
+  sl.registerSingleton<DocumentAuthorStorage>(documentAuthorStorage);
 
   sl.registerLazySingleton<AppVersionProvider>(() => AppVersionProvider());
   sl.registerLazySingleton<ForceUpdateNotifier>(

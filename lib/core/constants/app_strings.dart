@@ -46,16 +46,17 @@ abstract final class AppStrings {
   static const String selectOrderTypeHint =
       'Укажите тип заявки — откроется форма с полями для этого вида заказа';
   static const String orderType = 'Вид заказа';
+  static const String accompanyingProduct = 'Сопутствующий товар';
   static const String orderingFor = 'Торговая точка';
   static const String pullToRefresh = 'Потяните вниз для обновления';
   static const String noOrderTypes = 'Нет доступных типов заявок';
   static const String orderNumberRequired = 'Введите номер заказа';
   static const String supplierRequired = 'Введите поставщика';
-  static const String deliveryDateRequired = 'Выберите дату отправки';
+  static const String deliveryDateRequired = 'Выберите дату отгрузки';
   static const String selectDate = 'Выберите дату';
   static const String stockBalance = 'Остаток';
   static const String noProducts = 'Нет товаров для этого типа заявки';
-  static const String noDeliveryDates = 'Нет доступных дат отправки';
+  static const String noDeliveryDates = 'Нет доступных дат отгрузки';
   static const String atLeastOneItem = 'Укажите количество хотя бы для одной позиции';
   static const String organization = 'Организация';
   static const String organizationSender = 'Организация отправитель';
@@ -76,6 +77,8 @@ abstract final class AppStrings {
   static const String itemQuantityFractionInvalid =
       'После запятой допускается не более 3 цифр';
   static const String orderCreated = 'Заказ создан';
+  static const String createDocumentSavedHint =
+      'Документ сохранён и недоступен для редактирования. Чтобы создать новый, вернитесь назад.';
 
   // Order details
   static const String orderDetailsTitle = 'Детали заказа';
@@ -96,6 +99,7 @@ abstract final class AppStrings {
       'Созданные и завершённые заказы недоступны для редактирования';
   static const String recipient = 'Получатель';
   static const String author = 'Автор';
+  static const String authorCurrentUserBadge = 'Вы';
   static const String receiptItems = 'Приёмка';
   static const String receiptDecided = 'Обработанные позиции';
   static const String itemOrdered = 'Заказано';
@@ -178,6 +182,11 @@ abstract final class AppStrings {
   static const String noProductionItems = 'Нет позиций в документе';
   static const String productionSearchPrompt =
       'Найдите товар по названию, коду или артикулу';
+  static const String productionWarehouse = 'Склад продукции';
+  static const String rawMaterialsWarehouse = 'Склад сырья';
+  static const String selectRawMaterialsWarehouse = 'Выберите склад сырья';
+  static const String productionStructuralUnitError =
+      '1С не смогла провести производство. Проверьте совместимость склада сырья с выбранной торговой точкой и настройки номенклатуры в 1С.';
   static const String productionUsagePlaces = 'Места использования';
   static const String productionUsagePlace = 'Место использования';
   static const String noProductionUsagePlaces = 'Места использования не указаны';

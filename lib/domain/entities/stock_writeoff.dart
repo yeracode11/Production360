@@ -15,6 +15,8 @@ class StockWriteoff extends Equatable {
     this.reasonName,
     this.comment,
     this.dateDisplay,
+    this.author,
+    this.authorLogin,
     this.items = const [],
   });
 
@@ -30,6 +32,8 @@ class StockWriteoff extends Equatable {
   final String? reasonName;
   final String? comment;
   final String? dateDisplay;
+  final String? author;
+  final String? authorLogin;
   final List<StockWriteoffItem> items;
 
   @override
@@ -46,6 +50,8 @@ class StockWriteoff extends Equatable {
         reasonName,
         comment,
         dateDisplay,
+        author,
+        authorLogin,
         items,
       ];
 }

@@ -16,8 +16,10 @@ import '../../../domain/repositories/writeoff_repository.dart';
 import '../../bloc/writeoffs/writeoffs_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/document_author_row.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import 'select_writeoff_reason_screen.dart';
+import 'writeoff_details_screen.dart';
 
 class CreateWriteoffScreen extends StatefulWidget {
   const CreateWriteoffScreen({super.key, required this.warehouse});
@@ -37,6 +39,7 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
   final List<_WriteoffLineRow> _lines = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _createdDocumentId;
   String? _loadError;
 
   @override
@@ -84,7 +87,7 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
     if (existing.isNotEmpty) {
       final row = existing.first;
       final current = parseAmount(row.quantityController.text) ?? 0;
-      row.quantityController.text = (current + 1).toString();
+      row.quantityController.text = formatQuantityForInput(current + 1);
       setState(() {});
     } else {
       setState(() {
@@ -99,6 +102,48 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
     setState(() {
       row.dispose();
       _lines.remove(row);
+    });
+  }
+
+  void _removeProduct(NomenclatureProduct product) {
+    final matches =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (matches.isEmpty) return;
+    _removeLine(matches.first);
+  }
+
+  bool _isProductInLines(String productId) {
+    return _lines.any((line) => line.product.id == productId);
+  }
+
+  num? _productQuantity(String productId) {
+    for (final row in _lines) {
+      if (row.product.id == productId) {
+        return parseAmount(row.quantityController.text) ?? 1;
+      }
+    }
+    return null;
+  }
+
+  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
+    if (quantity <= 0) {
+      _removeProduct(product);
+      return;
+    }
+
+    final text = formatQuantityForInput(quantity);
+    final existing =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (existing.isNotEmpty) {
+      existing.first.quantityController.text = text;
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      final row = _WriteoffLineRow(product: product);
+      row.quantityController.text = text;
+      _lines.add(row);
     });
   }
 
@@ -152,6 +197,7 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
       );
 
       if (!mounted) return;
+      FocusScope.of(context).unfocus();
       context.read<WriteoffsCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -160,7 +206,7 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
           ),
         ),
       );
-      Navigator.of(context).pop(true);
+      setState(() => _createdDocumentId = result.id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,13 +225,26 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final created = _createdDocumentId;
+
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createWriteoffTitle)),
+      appBar: AppBar(
+        title: Text(
+          created != null
+              ? AppStrings.writeoffDetailsTitle
+              : AppStrings.createWriteoffTitle,
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
               ? _buildErrorBody()
-              : _buildForm(),
+              : created != null
+                  ? WriteoffDetailsScreen(
+                      writeoffId: created,
+                      embedded: true,
+                    )
+                  : _buildForm(),
     );
   }
 
@@ -272,6 +331,8 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
                                 alignLabelWithHint: true,
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            const CurrentUserAuthorRow(),
                           ],
                         ),
                       ),
@@ -285,7 +346,10 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
                     AddNomenclatureButton(
                       organizationId: _predata!.organizationId,
                       onProductSelected: _addProduct,
+                      onProductRemoved: _removeProduct,
                       isProductAdded: _isProductInLines,
+                      productQuantity: _productQuantity,
+                      onQuantityChanged: _changeProductQuantity,
                     ),
                     const SizedBox(height: 12),
                     if (_lines.isEmpty)
@@ -392,10 +456,6 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
         ),
       ),
     );
-  }
-
-  bool _isProductInLines(String productId) {
-    return _lines.any((line) => line.product.id == productId);
   }
 }
 

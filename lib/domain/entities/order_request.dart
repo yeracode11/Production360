@@ -17,6 +17,7 @@ class OrderRequest extends Equatable {
     this.createdDate,
     this.orderType,
     this.orderTypeId,
+    this.orderTypeForInfo = false,
     this.comment,
     this.statusLabel,
     this.organization,
@@ -24,6 +25,7 @@ class OrderRequest extends Equatable {
     this.recipientOrganization,
     this.recipientWarehouse,
     this.author,
+    this.authorLogin,
     this.createdDateDisplay,
     this.deliveryDateDisplay,
     this.items = const [],
@@ -40,6 +42,8 @@ class OrderRequest extends Equatable {
   final DateTime? createdDate;
   final String? orderType;
   final String? orderTypeId;
+  /// Сопутствующий товар (`forInfo` из 1С).
+  final bool orderTypeForInfo;
   final String? comment;
   /// Raw status label from 1C «СтатусЗаказа», e.g. «Создан», «Получен».
   final String? statusLabel;
@@ -48,6 +52,7 @@ class OrderRequest extends Equatable {
   final String? recipientOrganization;
   final String? recipientWarehouse;
   final String? author;
+  final String? authorLogin;
   final String? createdDateDisplay;
   final String? deliveryDateDisplay;
   final OrderStatus status;
@@ -72,6 +77,7 @@ class OrderRequest extends Equatable {
         createdDate,
         orderType,
         orderTypeId,
+        orderTypeForInfo,
         comment,
         statusLabel,
         organization,
@@ -79,6 +85,7 @@ class OrderRequest extends Equatable {
         recipientOrganization,
         recipientWarehouse,
         author,
+        authorLogin,
         createdDateDisplay,
         deliveryDateDisplay,
         status,

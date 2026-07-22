@@ -115,6 +115,11 @@ class _MainShellState extends State<MainShell> {
         onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       drawer: _AppDrawer(
+        currentIndex: _currentIndex,
+        onNavigate: (index) {
+          Navigator.pop(context);
+          setState(() => _currentIndex = index);
+        },
         onLogout: () {
           Navigator.pop(context);
           context.read<AuthBloc>().add(const AuthLogoutRequested());
@@ -150,8 +155,8 @@ class _MainShellState extends State<MainShell> {
             label: AppStrings.inventory,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.precision_manufacturing_outlined),
-            activeIcon: Icon(Icons.precision_manufacturing),
+            icon: Icon(Icons.factory_outlined),
+            activeIcon: Icon(Icons.factory),
             label: AppStrings.production,
           ),
         ],
@@ -226,9 +231,43 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _AppDrawer extends StatelessWidget {
-  const _AppDrawer({required this.onLogout});
+  const _AppDrawer({
+    required this.currentIndex,
+    required this.onNavigate,
+    required this.onLogout,
+  });
 
+  final int currentIndex;
+  final ValueChanged<int> onNavigate;
   final VoidCallback onLogout;
+
+  static const _navItems = [
+    _DrawerNavItem(
+      label: AppStrings.orders,
+      icon: Icons.assignment_outlined,
+      selectedIcon: Icons.assignment,
+    ),
+    _DrawerNavItem(
+      label: AppStrings.transfers,
+      icon: Icons.swap_horiz_outlined,
+      selectedIcon: Icons.swap_horiz,
+    ),
+    _DrawerNavItem(
+      label: AppStrings.writeoffs,
+      icon: Icons.remove_circle_outline,
+      selectedIcon: Icons.remove_circle,
+    ),
+    _DrawerNavItem(
+      label: AppStrings.inventory,
+      icon: Icons.inventory_2_outlined,
+      selectedIcon: Icons.inventory_2,
+    ),
+    _DrawerNavItem(
+      label: AppStrings.production,
+      icon: Icons.factory_outlined,
+      selectedIcon: Icons.factory,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -266,28 +305,82 @@ class _AppDrawer extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
+            for (var i = 0; i < _navItems.length; i++)
+              _DrawerNavTile(
+                item: _navItems[i],
+                selected: currentIndex == i,
+                onTap: () => onNavigate(i),
+              ),
+            const Divider(),
             ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text(AppStrings.profile),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text(AppStrings.settings),
-            onTap: () => Navigator.pop(context),
-          ),
-          const Divider(),
-          ListTile(
-            leading: Icon(Icons.logout, color: AppColors.error),
-            title: Text(
-              AppStrings.logout,
-              style: TextStyle(color: AppColors.error),
+              leading: const Icon(Icons.person_outline),
+              title: const Text(AppStrings.profile),
+              onTap: () => Navigator.pop(context),
             ),
-            onTap: onLogout,
-          ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text(AppStrings.settings),
+              onTap: () => Navigator.pop(context),
+            ),
+            const Spacer(),
+            const Divider(height: 1),
+            ListTile(
+              leading: Icon(Icons.logout, color: AppColors.error),
+              title: Text(
+                AppStrings.logout,
+                style: TextStyle(color: AppColors.error),
+              ),
+              onTap: onLogout,
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DrawerNavItem {
+  const _DrawerNavItem({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+}
+
+class _DrawerNavTile extends StatelessWidget {
+  const _DrawerNavTile({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _DrawerNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        selected ? item.selectedIcon : item.icon,
+        color: selected ? AppColors.turquoiseDark : null,
+      ),
+      title: Text(
+        item.label,
+        style: selected
+            ? Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.turquoiseDark,
+                )
+            : null,
+      ),
+      selected: selected,
+      selectedTileColor: AppColors.mintSoft,
+      onTap: onTap,
     );
   }
 }

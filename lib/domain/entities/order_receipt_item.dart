@@ -16,9 +16,9 @@ class OrderReceiptItem extends Equatable {
   final String name;
   final String? code;
   final String unit;
-  final int ordered;
-  final int shipped;
-  final int received;
+  final double ordered;
+  final double shipped;
+  final double received;
 
   @override
   List<Object?> get props => [id, name, code, unit, ordered, shipped, received];

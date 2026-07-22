@@ -5,13 +5,19 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/production_document.dart';
 import '../../../domain/repositories/production_repository.dart';
 
 class ProductionDetailsScreen extends StatefulWidget {
-  const ProductionDetailsScreen({super.key, required this.productionId});
+  const ProductionDetailsScreen({
+    super.key,
+    required this.productionId,
+    this.embedded = false,
+  });
 
   final String productionId;
+  final bool embedded;
 
   @override
   State<ProductionDetailsScreen> createState() =>
@@ -61,16 +67,20 @@ class _ProductionDetailsScreenState extends State<ProductionDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+            ? _buildError()
+            : RefreshIndicator(
+                onRefresh: _loadDocument,
+                child: _buildContent(),
+              );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.productionDetailsTitle)),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? _buildError()
-              : RefreshIndicator(
-                  onRefresh: _loadDocument,
-                  child: _buildContent(),
-                ),
+      body: body,
     );
   }
 
@@ -135,18 +145,22 @@ class _ProductionDetailsScreenState extends State<ProductionDetailsScreen> {
                           '${document.date.year}',
                 ),
                 _DetailRow(
-                  label: AppStrings.status,
-                  value: document.isPosted
-                      ? AppStrings.productionPosted
-                      : AppStrings.productionNotPosted,
-                ),
-                _DetailRow(
                   label: AppStrings.organization,
                   value: document.organizationName,
                 ),
                 _DetailRow(
-                  label: AppStrings.warehouse,
+                  label: AppStrings.productionWarehouse,
                   value: document.warehouseName,
+                ),
+                if (document.rawMaterialsWarehouseName != null)
+                  _DetailRow(
+                    label: AppStrings.rawMaterialsWarehouse,
+                    value: document.rawMaterialsWarehouseName!,
+                  ),
+                ResolvedDocumentAuthorRow(
+                  documentId: document.id,
+                  authorLogin: document.authorLogin,
+                  author: document.author,
                 ),
                 if (document.comment != null)
                   _DetailRow(

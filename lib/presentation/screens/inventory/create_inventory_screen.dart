@@ -17,7 +17,9 @@ import '../../../domain/repositories/writeoff_repository.dart';
 import '../../bloc/inventory/inventory_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/document_author_row.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import 'inventory_details_screen.dart';
 
 class CreateInventoryScreen extends StatefulWidget {
   const CreateInventoryScreen({super.key, required this.warehouse});
@@ -36,6 +38,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   bool _isLoadingPredata = true;
   String? _predataError;
   bool _isSaving = false;
+  String? _createdDocumentId;
 
   @override
   void initState() {
@@ -81,7 +84,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
     if (existing.isNotEmpty) {
       final row = existing.first;
       final current = parseAmount(row.quantityController.text) ?? 0;
-      row.quantityController.text = (current + 1).toString();
+      row.quantityController.text = formatQuantityForInput(current + 1);
       setState(() {});
     } else {
       setState(() {
@@ -99,8 +102,46 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
     });
   }
 
+  void _removeProduct(NomenclatureProduct product) {
+    final matches =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (matches.isEmpty) return;
+    _removeLine(matches.first);
+  }
+
   bool _isProductInLines(String productId) {
     return _lines.any((line) => line.product.id == productId);
+  }
+
+  num? _productQuantity(String productId) {
+    for (final row in _lines) {
+      if (row.product.id == productId) {
+        return parseAmount(row.quantityController.text) ?? 0;
+      }
+    }
+    return null;
+  }
+
+  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
+    if (quantity < 0) {
+      _removeProduct(product);
+      return;
+    }
+
+    final text = formatQuantityForInput(quantity);
+    final existing =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (existing.isNotEmpty) {
+      existing.first.quantityController.text = text;
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      final row = _InventoryLineRow(product: product);
+      row.quantityController.text = text;
+      _lines.add(row);
+    });
   }
 
   Future<void> _submit() async {
@@ -109,7 +150,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
     final items = <CreateInventoryItemRequest>[];
     for (final row in _lines) {
       final amount = parseAmount(row.quantityController.text);
-      if (amount == null || amount <= 0) continue;
+      if (amount == null || amount < 0) continue;
       items.add(
         CreateInventoryItemRequest(
           productId: row.product.id,
@@ -145,6 +186,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
       );
 
       if (!mounted) return;
+      FocusScope.of(context).unfocus();
       context.read<InventoryCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -153,7 +195,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
           ),
         ),
       );
-      Navigator.of(context).pop(true);
+      setState(() => _createdDocumentId = result.id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +214,8 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final created = _createdDocumentId;
+
     if (_isLoadingPredata) {
       return Scaffold(
         appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
@@ -205,123 +249,144 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
       );
     }
 
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          created != null
+              ? AppStrings.inventoryDetailsTitle
+              : AppStrings.createInventoryTitle,
+        ),
+      ),
+      body: created != null
+          ? InventoryDetailsScreen(
+              inventoryId: created,
+              embedded: true,
+            )
+          : _buildForm(),
+    );
+  }
+
+  Widget _buildForm() {
     final predata = _predata!;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: DismissKeyboard.onTap(
-                context,
-                SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                AppStrings.mainInfo,
-                                style: Theme.of(context).textTheme.titleMedium,
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          Expanded(
+            child: DismissKeyboard.onTap(
+              context,
+              SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.mainInfo,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.organization,
                               ),
-                              const SizedBox(height: 12),
-                              InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.organization,
-                                ),
-                                child: Text(predata.organizationName),
+                              child: Text(predata.organizationName),
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.warehouse,
                               ),
-                              const SizedBox(height: 12),
-                              InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.warehouse,
-                                ),
-                                child: Text(widget.warehouse.name),
+                              child: Text(widget.warehouse.name),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _commentController,
+                              maxLines: null,
+                              minLines: 2,
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.comment,
+                                hintText: AppStrings.commentHint,
+                                alignLabelWithHint: true,
                               ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _commentController,
-                                maxLines: null,
-                                minLines: 2,
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.comment,
-                                  hintText: AppStrings.commentHint,
-                                  alignLabelWithHint: true,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 12),
+                            const CurrentUserAuthorRow(),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        AppStrings.inventoryItems,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      AddNomenclatureButton(
-                        organizationId: predata.organizationId,
-                        onProductSelected: _addProduct,
-                        isProductAdded: _isProductInLines,
-                      ),
-                      const SizedBox(height: 12),
-                      if (_lines.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            AppStrings.inventorySearchPrompt,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.inventoryItems,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    AddNomenclatureButton(
+                      organizationId: predata.organizationId,
+                      onProductSelected: _addProduct,
+                      onProductRemoved: _removeProduct,
+                      isProductAdded: _isProductInLines,
+                      productQuantity: _productQuantity,
+                      onQuantityChanged: _changeProductQuantity,
+                      allowZeroQuantity: true,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_lines.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          AppStrings.inventorySearchPrompt,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      )
+                    else
+                      for (final row in _lines)
+                        _InventoryLineCard(
+                          row: row,
+                          onRemove: () => _removeLine(row),
+                        ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _submit,
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
-                      else
-                        for (final row in _lines)
-                          _InventoryLineCard(
-                            row: row,
-                            onRemove: () => _removeLine(row),
-                          ),
-                    ],
-                  ),
+                      : const Text(AppStrings.createInventory),
                 ),
               ),
             ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(AppStrings.createInventory),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -404,7 +469,8 @@ class _InventoryLineCard extends StatelessWidget {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: const [QuantityInputFormatter()],
-              validator: (v) => validateQuantityInput(v, required: true),
+              validator: (v) =>
+                  validateQuantityInput(v, required: true, allowZero: true),
             ),
           ],
         ),

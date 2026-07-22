@@ -5,13 +5,19 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/internal_transfer.dart';
 import '../../../domain/repositories/transfer_repository.dart';
 
 class TransferDetailsScreen extends StatefulWidget {
-  const TransferDetailsScreen({super.key, required this.transferId});
+  const TransferDetailsScreen({
+    super.key,
+    required this.transferId,
+    this.embedded = false,
+  });
 
   final String transferId;
+  final bool embedded;
 
   @override
   State<TransferDetailsScreen> createState() => _TransferDetailsScreenState();
@@ -60,16 +66,20 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+            ? _buildError()
+            : RefreshIndicator(
+                onRefresh: _loadTransfer,
+                child: _buildContent(),
+              );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.transferDetailsTitle)),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? _buildError()
-              : RefreshIndicator(
-                  onRefresh: _loadTransfer,
-                  child: _buildContent(),
-                ),
+      body: body,
     );
   }
 
@@ -134,12 +144,6 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                           '${transfer.date.year}',
                 ),
                 _DetailRow(
-                  label: AppStrings.status,
-                  value: transfer.isPosted
-                      ? AppStrings.transferPosted
-                      : AppStrings.transferNotPosted,
-                ),
-                _DetailRow(
                   label: AppStrings.organization,
                   value: transfer.organizationName,
                 ),
@@ -150,6 +154,11 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                 _DetailRow(
                   label: AppStrings.recipientWarehouse,
                   value: transfer.recipientWarehouseName,
+                ),
+                ResolvedDocumentAuthorRow(
+                  documentId: transfer.id,
+                  authorLogin: transfer.authorLogin,
+                  author: transfer.author,
                 ),
                 if (transfer.comment != null)
                   _DetailRow(

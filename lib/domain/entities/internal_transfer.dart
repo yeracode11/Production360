@@ -15,6 +15,8 @@ class InternalTransfer extends Equatable {
     required this.recipientWarehouseName,
     this.comment,
     this.dateDisplay,
+    this.author,
+    this.authorLogin,
     this.items = const [],
   });
 
@@ -31,6 +33,8 @@ class InternalTransfer extends Equatable {
   final String? comment;
   /// «11.06.2026 22:50:02» из 1С.
   final String? dateDisplay;
+  final String? author;
+  final String? authorLogin;
   final List<InternalTransferItem> items;
 
   @override
@@ -47,6 +51,8 @@ class InternalTransfer extends Equatable {
         recipientWarehouseName,
         comment,
         dateDisplay,
+        author,
+        authorLogin,
         items,
       ];
 }

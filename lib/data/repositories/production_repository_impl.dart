@@ -3,14 +3,17 @@ import 'package:dio/dio.dart';
 import '../../core/config/one_c_config.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/one_c_json.dart';
+import '../../core/utils/document_author_support.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/create_production_request.dart';
 import '../../domain/entities/create_production_result.dart';
 import '../../domain/entities/production_document.dart';
+import '../../domain/entities/transfer_predata.dart';
 import '../../domain/repositories/production_repository.dart';
 import '../models/create_production_request_model.dart';
 import '../models/create_production_result_model.dart';
 import '../models/production_document_model.dart';
+import '../models/transfer_predata_model.dart';
 
 class ProductionRepositoryImpl implements ProductionRepository {
   ProductionRepositoryImpl({required DioClient dioClient})
@@ -72,6 +75,26 @@ class ProductionRepositoryImpl implements ProductionRepository {
   }
 
   @override
+  Future<TransferPredata> fetchPredata({required String warehouseId}) async {
+    try {
+      final response = await _dioClient.instance.get(
+        OneCConfig.productionPredataPath,
+        queryParameters: {'skladID': warehouseId},
+      );
+      final json = parseOneCJson(response.data);
+      _throwIfOneCError(json, 'Ошибка загрузки данных для производства');
+
+      final data = json['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw Exception('Пустой ответ от 1С');
+      }
+      return TransferPredataModel.from1CJson(data);
+    } on DioException catch (e) {
+      throw Exception(_mapDioError(e));
+    }
+  }
+
+  @override
   Future<CreateProductionResult> createProduction(
     CreateProductionRequest request,
   ) async {
@@ -87,7 +110,12 @@ class ProductionRepositoryImpl implements ProductionRepository {
       if (data == null) {
         throw Exception('Пустой ответ от 1С');
       }
-      return CreateProductionResultModel.from1CJson(data);
+      final result = CreateProductionResultModel.from1CJson(data);
+      await DocumentAuthorSupport.rememberCreatedDocument(
+        documentId: result.id,
+        responseJson: data,
+      );
+      return result;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

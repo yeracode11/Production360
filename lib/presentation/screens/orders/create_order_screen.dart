@@ -15,7 +15,9 @@ import '../../../domain/entities/order_type_product.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../bloc/orders/orders_cubit.dart';
+import '../../widgets/accompanying_product_label.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/document_author_row.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import '../../widgets/order_create_preview_item.dart';
 import 'create_order_preview_screen.dart';
@@ -44,6 +46,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   bool _isLoading = true;
   String? _loadError;
   bool _isSaving = false;
+  CreateOrderPreviewData? _createdOrderPreview;
 
   @override
   void initState() {
@@ -133,6 +136,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       data: CreateOrderPreviewData(
         warehouseName: widget.warehouse.name,
         orderTypeName: typeData.name,
+        orderTypeForInfo: typeData.forInfo,
         organizationName: typeData.organizationName,
         supplierWarehouseName: typeData.warehouseName,
         deliveryDate: _selectedDate!.display,
@@ -199,6 +203,22 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     return previewItems;
   }
 
+  CreateOrderPreviewData _buildPreviewData(List<CreateOrderItemRequest> items) {
+    final typeData = _typeData!;
+    return CreateOrderPreviewData(
+      warehouseName: widget.warehouse.name,
+      orderTypeName: typeData.name,
+      orderTypeForInfo: typeData.forInfo,
+      organizationName: typeData.organizationName,
+      supplierWarehouseName: typeData.warehouseName,
+      deliveryDate: _selectedDate!.display,
+      comment: _commentController.text.trim().isEmpty
+          ? null
+          : _commentController.text.trim(),
+      items: _buildPreviewItems(items),
+    );
+  }
+
   Future<void> _performCreateOrder(List<CreateOrderItemRequest> items) async {
     setState(() => _isSaving = true);
 
@@ -220,11 +240,12 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       await sl<OrderRepository>().createOrder(request);
 
       if (mounted) {
+        FocusScope.of(context).unfocus();
         context.read<OrdersCubit>().refreshCurrentWarehouse();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(AppStrings.orderCreated)),
         );
-        Navigator.of(context).pop(true);
+        setState(() => _createdOrderPreview = _buildPreviewData(items));
       }
     } catch (e) {
       if (mounted) {
@@ -244,13 +265,23 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final created = _createdOrderPreview;
+
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createOrderTitle)),
+      appBar: AppBar(
+        title: Text(
+          created != null
+              ? AppStrings.orderDetailsTitle
+              : AppStrings.createOrderTitle,
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
               ? _buildErrorBody()
-              : _buildForm(),
+              : created != null
+                  ? CreateOrderPreviewContent(data: created)
+                  : _buildForm(),
     );
   }
 
@@ -294,10 +325,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -319,7 +350,16 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                               decoration: const InputDecoration(
                                 labelText: AppStrings.orderType,
                               ),
-                              child: Text(typeData.name),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(typeData.name),
+                                  if (typeData.forInfo) ...[
+                                    const SizedBox(height: 4),
+                                    const AccompanyingProductLabel(),
+                                  ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 12),
                             InputDecorator(
@@ -344,7 +384,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                             else
                               InputDecorator(
                                 decoration: const InputDecoration(
-                                  labelText: AppStrings.deliveryDate,
+                                  labelText: AppStrings.shipmentDate,
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<DeliveryDateOption>(
@@ -364,8 +404,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                                   ),
                                 ),
                               ),
-                            const SizedBox(height: 12),
-                            TextFormField(
+                              const SizedBox(height: 12),
+                              TextFormField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -375,6 +415,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                                 alignLabelWithHint: true,
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            const CurrentUserAuthorRow(),
                           ],
                         ),
                       ),
@@ -393,10 +435,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                     else
                       for (final row in _productRows)
                         _ProductCard(row: row),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             ),
           ),
           SafeArea(

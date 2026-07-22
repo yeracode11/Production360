@@ -16,8 +16,10 @@ import '../../../domain/repositories/transfer_repository.dart';
 import '../../bloc/transfers/transfers_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/document_author_row.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import 'select_recipient_warehouse_screen.dart';
+import 'transfer_details_screen.dart';
 
 class CreateTransferScreen extends StatefulWidget {
   const CreateTransferScreen({super.key, required this.warehouse});
@@ -37,6 +39,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   final List<_TransferLineRow> _lines = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _createdDocumentId;
   String? _loadError;
 
   @override
@@ -67,9 +70,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
       if (!mounted) return;
       setState(() {
         _predata = predata;
-        _selectedRecipient = predata.availableWarehouses.isNotEmpty
-            ? predata.availableWarehouses.first
-            : null;
+        _selectedRecipient = null;
         _isLoading = false;
       });
     } catch (e) {
@@ -86,7 +87,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     if (existing.isNotEmpty) {
       final row = existing.first;
       final current = parseAmount(row.quantityController.text) ?? 0;
-      row.quantityController.text = (current + 1).toString();
+      row.quantityController.text = formatQuantityForInput(current + 1);
       setState(() {});
     } else {
       setState(() {
@@ -101,6 +102,48 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     setState(() {
       row.dispose();
       _lines.remove(row);
+    });
+  }
+
+  void _removeProduct(NomenclatureProduct product) {
+    final matches =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (matches.isEmpty) return;
+    _removeLine(matches.first);
+  }
+
+  bool _isProductInLines(String productId) {
+    return _lines.any((line) => line.product.id == productId);
+  }
+
+  num? _productQuantity(String productId) {
+    for (final row in _lines) {
+      if (row.product.id == productId) {
+        return parseAmount(row.quantityController.text) ?? 1;
+      }
+    }
+    return null;
+  }
+
+  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
+    if (quantity <= 0) {
+      _removeProduct(product);
+      return;
+    }
+
+    final text = formatQuantityForInput(quantity);
+    final existing =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (existing.isNotEmpty) {
+      existing.first.quantityController.text = text;
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      final row = _TransferLineRow(product: product);
+      row.quantityController.text = text;
+      _lines.add(row);
     });
   }
 
@@ -154,6 +197,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
       );
 
       if (!mounted) return;
+      FocusScope.of(context).unfocus();
       context.read<TransfersCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -162,7 +206,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
           ),
         ),
       );
-      Navigator.of(context).pop(true);
+      setState(() => _createdDocumentId = result.id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -181,13 +225,26 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final created = _createdDocumentId;
+
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createTransferTitle)),
+      appBar: AppBar(
+        title: Text(
+          created != null
+              ? AppStrings.transferDetailsTitle
+              : AppStrings.createTransferTitle,
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
               ? _buildErrorBody()
-              : _buildForm(),
+              : created != null
+                  ? TransferDetailsScreen(
+                      transferId: created,
+                      embedded: true,
+                    )
+                  : _buildForm(),
     );
   }
 
@@ -228,87 +285,93 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppStrings.mainInfo,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 12),
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.organization,
-                            ),
-                            child: Text(predata.organizationName),
-                          ),
-                          const SizedBox(height: 12),
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.warehouseSender,
-                            ),
-                            child: Text(widget.warehouse.name),
-                          ),
-                          const SizedBox(height: 12),
-                          if (predata.availableWarehouses.isEmpty)
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              AppStrings.noRecipientWarehouses,
-                              style: TextStyle(color: AppColors.error),
-                            )
-                          else
-                            _buildRecipientSelector(predata),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _commentController,
-                            maxLines: null,
-                            minLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: AppStrings.comment,
-                              hintText: AppStrings.commentHint,
-                              alignLabelWithHint: true,
+                              AppStrings.mainInfo,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.organization,
+                              ),
+                              child: Text(predata.organizationName),
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.warehouseSender,
+                              ),
+                              child: Text(widget.warehouse.name),
+                            ),
+                            const SizedBox(height: 12),
+                            if (predata.availableWarehouses.isEmpty)
+                              Text(
+                                AppStrings.noRecipientWarehouses,
+                                style: TextStyle(color: AppColors.error),
+                              )
+                            else
+                              _buildRecipientSelector(predata),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _commentController,
+                              maxLines: null,
+                              minLines: 2,
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.comment,
+                                hintText: AppStrings.commentHint,
+                                alignLabelWithHint: true,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const CurrentUserAuthorRow(),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.transferItems,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  AddNomenclatureButton(
-                    organizationId: predata.organizationId,
-                    onProductSelected: _addProduct,
-                    isProductAdded: _isProductInLines,
-                  ),
-                  const SizedBox(height: 12),
-                  if (_lines.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        AppStrings.transfersSearchPrompt,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    )
-                  else
-                    for (final row in _lines)
-                      _TransferLineCard(
-                        row: row,
-                        onRemove: () => _removeLine(row),
-                      ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.transferItems,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    AddNomenclatureButton(
+                      organizationId: predata.organizationId,
+                      onProductSelected: _addProduct,
+                      onProductRemoved: _removeProduct,
+                      isProductAdded: _isProductInLines,
+                      productQuantity: _productQuantity,
+                      onQuantityChanged: _changeProductQuantity,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_lines.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          AppStrings.transfersSearchPrompt,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      )
+                    else
+                      for (final row in _lines)
+                        _TransferLineCard(
+                          row: row,
+                          onRemove: () => _removeLine(row),
+                        ),
+                  ],
+                ),
               ),
-            ),
             ),
           ),
           SafeArea(
@@ -384,10 +447,6 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
         ),
       ),
     );
-  }
-
-  bool _isProductInLines(String productId) {
-    return _lines.any((line) => line.product.id == productId);
   }
 }
 

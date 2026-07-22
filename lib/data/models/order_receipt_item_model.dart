@@ -1,3 +1,4 @@
+import '../../core/utils/amount_parser.dart';
 import '../../domain/entities/order_receipt_item.dart';
 
 class OrderReceiptItemModel extends OrderReceiptItem {
@@ -17,9 +18,9 @@ class OrderReceiptItemModel extends OrderReceiptItem {
       name: _readString(json, ['Наименование', 'name', 'Name']),
       code: _readOptionalString(json, ['code', 'Код', 'Артикул']),
       unit: _readString(json, ['edIzm', 'ЕдИзм', 'unit']),
-      ordered: _parseInt(json['ordered'] ?? json['Заказано']),
-      shipped: _parseInt(json['shipped'] ?? json['Отгружено']),
-      received: _parseInt(json['received'] ?? json['Получено']),
+      ordered: parseAmountValue(json['ordered'] ?? json['Заказано']).toDouble(),
+      shipped: parseAmountValue(json['shipped'] ?? json['Отгружено']).toDouble(),
+      received: parseAmountValue(json['received'] ?? json['Получено']).toDouble(),
     );
   }
 
@@ -36,12 +37,5 @@ class OrderReceiptItemModel extends OrderReceiptItem {
   static String? _readOptionalString(Map<String, dynamic> json, List<String> keys) {
     final value = _readString(json, keys);
     return value.isEmpty ? null : value;
-  }
-
-  static int _parseInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.parse(value.toString());
   }
 }

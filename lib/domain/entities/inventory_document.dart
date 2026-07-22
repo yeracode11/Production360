@@ -13,6 +13,8 @@ class InventoryDocument extends Equatable {
     required this.warehouseName,
     this.comment,
     this.dateDisplay,
+    this.author,
+    this.authorLogin,
     this.items = const [],
   });
 
@@ -26,6 +28,8 @@ class InventoryDocument extends Equatable {
   final String warehouseName;
   final String? comment;
   final String? dateDisplay;
+  final String? author;
+  final String? authorLogin;
   final List<InventoryDocumentItem> items;
 
   @override
@@ -40,6 +44,8 @@ class InventoryDocument extends Equatable {
         warehouseName,
         comment,
         dateDisplay,
+        author,
+        authorLogin,
         items,
       ];
 }

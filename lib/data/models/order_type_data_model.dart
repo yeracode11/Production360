@@ -1,3 +1,4 @@
+import '../../core/utils/one_c_bool.dart';
 import '../../domain/entities/delivery_date_option.dart';
 import '../../domain/entities/order_type_data.dart';
 import '../../domain/entities/order_type_product.dart';
@@ -12,6 +13,7 @@ class OrderTypeDataModel extends OrderTypeData {
     required super.warehouseName,
     required super.products,
     required super.dates,
+    super.forInfo,
   });
 
   factory OrderTypeDataModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,7 @@ class OrderTypeDataModel extends OrderTypeData {
       organizationName: json['organizarionName'] as String,
       warehouseId: json['skladID'] as String,
       warehouseName: json['skladName'] as String,
+      forInfo: parseOneCBool(json['forInfo']),
       products: productsJson
           .map((e) => OrderTypeProductModel.fromJson(e as Map<String, dynamic>))
           .toList(),

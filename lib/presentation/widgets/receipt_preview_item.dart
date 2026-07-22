@@ -13,10 +13,10 @@ class ReceiptPreviewItem {
 
   final String name;
   final String unit;
-  final int ordered;
-  final int shipped;
+  final double ordered;
+  final double shipped;
   final ReceiptItemPreviewStatus status;
-  final int received;
+  final double received;
 
   bool get accepted => status == ReceiptItemPreviewStatus.accepted;
   bool get rejected => status == ReceiptItemPreviewStatus.rejected;

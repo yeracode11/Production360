@@ -19,5 +19,6 @@ abstract final class OneCConfig {
   static const String inventoryPath = '/mobile/invent';
   static const String inventoryCreatePath = '/mobile/invent/create';
   static const String productionPath = '/mobile/proizvodstvo';
+  static const String productionPredataPath = '/mobile/proizvodstvo/predata';
   static const String productionCreatePath = '/mobile/proizvodstvo/create';
 }

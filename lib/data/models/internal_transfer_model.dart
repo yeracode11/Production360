@@ -1,3 +1,4 @@
+import '../../core/utils/one_c_author.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/internal_transfer.dart';
 
@@ -15,12 +16,15 @@ class InternalTransferModel extends InternalTransfer {
     required super.recipientWarehouseName,
     super.comment,
     super.dateDisplay,
+    super.author,
+    super.authorLogin,
     super.items = const [],
   });
 
   /// GET /mobile/internaltransfer?skladID=&date= → элемент «data».
   factory InternalTransferModel.from1CListJson(Map<String, dynamic> json) {
     final dateRaw = json['Дата'] as String;
+    final authorFields = OneCAuthorFields.parse(json);
     return InternalTransferModel(
       id: json['Ссылка'] as String,
       number: json['Номер'] as String,
@@ -34,6 +38,8 @@ class InternalTransferModel extends InternalTransfer {
       recipientWarehouseId: json['СкладПолучательСсылка'] as String,
       recipientWarehouseName: json['СкладПолучательНаименование'] as String,
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
     );
   }
 
@@ -41,6 +47,7 @@ class InternalTransferModel extends InternalTransfer {
   factory InternalTransferModel.from1CDetailJson(Map<String, dynamic> json) {
     final itemsJson = json['Товары'] as List<dynamic>? ?? [];
     final dateRaw = json['Дата'] as String?;
+    final authorFields = OneCAuthorFields.parse(json);
 
     return InternalTransferModel(
       id: json['Ссылка'] as String,
@@ -56,6 +63,8 @@ class InternalTransferModel extends InternalTransfer {
       recipientWarehouseName:
           json['СкладПолучательНаименование'] as String? ?? '',
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
       items: itemsJson
           .map(
             (e) => InternalTransferItemModel.from1CJson(

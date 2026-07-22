@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/exception_message.dart';
 import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
+import 'nomenclature_quantity_stepper.dart';
 
 class _BrowseLevel {
   const _BrowseLevel({this.id, this.name = AppStrings.nomenclatureRootGroups});
@@ -22,16 +23,25 @@ class NomenclaturePicker extends StatefulWidget {
     super.key,
     required this.organizationId,
     required this.onProductSelected,
+    required this.onProductRemoved,
     required this.isProductAdded,
+    this.productQuantity,
+    this.onQuantityChanged,
     this.onTitleChanged,
     this.batchSize = 30,
+    this.allowZeroQuantity = false,
   });
 
   final String organizationId;
   final ValueChanged<NomenclatureProduct> onProductSelected;
+  final ValueChanged<NomenclatureProduct> onProductRemoved;
   final bool Function(String productId) isProductAdded;
+  final num? Function(String productId)? productQuantity;
+  final void Function(NomenclatureProduct product, num quantity)?
+      onQuantityChanged;
   final ValueChanged<String>? onTitleChanged;
   final int batchSize;
+  final bool allowZeroQuantity;
 
   @override
   State<NomenclaturePicker> createState() => _NomenclaturePickerState();
@@ -446,7 +456,13 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
           children.add(_ProductTile(
             product: product,
             isAdded: widget.isProductAdded(product.id),
-            onTap: () => widget.onProductSelected(product),
+            quantity: widget.productQuantity?.call(product.id),
+            allowZero: widget.allowZeroQuantity,
+            onAdd: () => widget.onProductSelected(product),
+            onRemove: () => widget.onProductRemoved(product),
+            onQuantityChanged: widget.onQuantityChanged == null
+                ? null
+                : (value) => widget.onQuantityChanged!(product, value),
           ));
         }
         if (_hasMoreProducts) {
@@ -500,7 +516,13 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
       children.add(_ProductTile(
         product: product,
         isAdded: widget.isProductAdded(product.id),
-        onTap: () => widget.onProductSelected(product),
+        quantity: widget.productQuantity?.call(product.id),
+        allowZero: widget.allowZeroQuantity,
+        onAdd: () => widget.onProductSelected(product),
+        onRemove: () => widget.onProductRemoved(product),
+        onQuantityChanged: widget.onQuantityChanged == null
+            ? null
+            : (value) => widget.onQuantityChanged!(product, value),
       ));
     }
 
@@ -625,26 +647,35 @@ class _Panel extends StatelessWidget {
 class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
-    required this.onTap,
+    required this.onAdd,
+    required this.onRemove,
     required this.isAdded,
+    this.quantity,
+    this.onQuantityChanged,
+    this.allowZero = false,
   });
 
   final NomenclatureProduct product;
-  final VoidCallback onTap;
+  final VoidCallback onAdd;
+  final VoidCallback onRemove;
   final bool isAdded;
+  final num? quantity;
+  final ValueChanged<num>? onQuantityChanged;
+  final bool allowZero;
+
+  bool get _showQuantityStepper =>
+      isAdded && quantity != null && onQuantityChanged != null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-          child: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
@@ -685,10 +716,22 @@ class _ProductTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _AddButton(isAdded: isAdded),
+              if (_showQuantityStepper)
+                NomenclatureQuantityStepper(
+                  quantity: quantity!,
+                  allowZero: allowZero,
+                  onChanged: onQuantityChanged!,
+                  onRemove: onRemove,
+                )
+              else
+                _AddButton(
+                  isAdded: isAdded,
+                  onAdd: onAdd,
+                  onRemove: onRemove,
+                ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -728,52 +771,71 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.isAdded});
+  const _AddButton({
+    required this.isAdded,
+    required this.onAdd,
+    required this.onRemove,
+  });
 
   final bool isAdded;
+  final VoidCallback onAdd;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     if (isAdded) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 16, color: AppColors.success),
-            const SizedBox(width: 4),
-            Text(
-              AppStrings.productAdded,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  ),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceCard,
+              borderRadius: BorderRadius.circular(20),
+              border:
+                  Border.all(color: AppColors.success.withValues(alpha: 0.4)),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, size: 16, color: AppColors.success),
+                const SizedBox(width: 4),
+                Text(
+                  AppStrings.productAdded,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.remove_circle_outline, color: AppColors.error),
+            tooltip: AppStrings.removeItem,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.only(left: 4),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            onPressed: onRemove,
+          ),
+        ],
       );
     }
 
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppColors.turquoise,
+    return Material(
+      color: AppColors.turquoise,
+      borderRadius: BorderRadius.circular(10),
+      elevation: 2,
+      shadowColor: AppColors.turquoise.withValues(alpha: 0.25),
+      child: InkWell(
+        onTap: onAdd,
         borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.turquoise.withValues(alpha: 0.25),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        child: const SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(Icons.add, color: Colors.white, size: 22),
+        ),
       ),
-      child: const Icon(Icons.add, color: Colors.white, size: 22),
     );
   }
 }

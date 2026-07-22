@@ -11,13 +11,15 @@ import '../../../core/utils/order_item_display.dart';
 import '../../../domain/entities/create_production_request.dart';
 import '../../../domain/entities/nomenclature_product.dart';
 import '../../../domain/entities/warehouse.dart';
-import '../../../domain/entities/writeoff_predata.dart';
+import '../../../domain/entities/transfer_predata.dart';
 import '../../../domain/repositories/production_repository.dart';
-import '../../../domain/repositories/writeoff_repository.dart';
 import '../../bloc/production/production_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/document_author_row.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../production/production_details_screen.dart';
+import '../transfers/select_recipient_warehouse_screen.dart';
 
 class CreateProductionScreen extends StatefulWidget {
   const CreateProductionScreen({super.key, required this.warehouse});
@@ -32,10 +34,12 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
   final List<_ProductionLineRow> _lines = [];
-  WriteoffPredata? _predata;
+  TransferPredata? _predata;
+  TransferWarehouseOption? _selectedRawMaterialsWarehouse;
   bool _isLoadingPredata = true;
   String? _predataError;
   bool _isSaving = false;
+  String? _createdDocumentId;
 
   @override
   void initState() {
@@ -50,12 +54,13 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     });
 
     try {
-      final predata = await sl<WriteoffRepository>().fetchPredata(
+      final predata = await sl<ProductionRepository>().fetchPredata(
         warehouseId: widget.warehouse.id,
       );
       if (!mounted) return;
       setState(() {
         _predata = predata;
+        _selectedRawMaterialsWarehouse = null;
         _isLoadingPredata = false;
       });
     } catch (e) {
@@ -81,7 +86,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     if (existing.isNotEmpty) {
       final row = existing.first;
       final current = parseAmount(row.quantityController.text) ?? 0;
-      row.quantityController.text = (current + 1).toString();
+      row.quantityController.text = formatQuantityForInput(current + 1);
       setState(() {});
     } else {
       setState(() {
@@ -99,11 +104,56 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     });
   }
 
+  void _removeProduct(NomenclatureProduct product) {
+    final matches =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (matches.isEmpty) return;
+    _removeLine(matches.first);
+  }
+
   bool _isProductInLines(String productId) {
     return _lines.any((line) => line.product.id == productId);
   }
 
+  num? _productQuantity(String productId) {
+    for (final row in _lines) {
+      if (row.product.id == productId) {
+        return parseAmount(row.quantityController.text) ?? 1;
+      }
+    }
+    return null;
+  }
+
+  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
+    if (quantity <= 0) {
+      _removeProduct(product);
+      return;
+    }
+
+    final text = formatQuantityForInput(quantity);
+    final existing =
+        _lines.where((line) => line.product.id == product.id).toList();
+    if (existing.isNotEmpty) {
+      existing.first.quantityController.text = text;
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      final row = _ProductionLineRow(product: product);
+      row.quantityController.text = text;
+      _lines.add(row);
+    });
+  }
+
   Future<void> _submit() async {
+    if (_selectedRawMaterialsWarehouse == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(AppStrings.selectRawMaterialsWarehouse)),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     final items = <CreateProductionItemRequest>[];
@@ -136,7 +186,8 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     try {
       final result = await sl<ProductionRepository>().createProduction(
         CreateProductionRequest(
-          warehouseId: widget.warehouse.id,
+          productsWarehouseId: widget.warehouse.id,
+          rawMaterialsWarehouseId: _selectedRawMaterialsWarehouse!.id,
           comment: _commentController.text.trim().isEmpty
               ? null
               : _commentController.text.trim(),
@@ -145,6 +196,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
       );
 
       if (!mounted) return;
+      FocusScope.of(context).unfocus();
       context.read<ProductionCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -153,7 +205,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
           ),
         ),
       );
-      Navigator.of(context).pop(true);
+      setState(() => _createdDocumentId = result.id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +224,8 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final created = _createdDocumentId;
+
     if (_isLoadingPredata) {
       return Scaffold(
         appBar: AppBar(title: const Text(AppStrings.createProductionTitle)),
@@ -205,120 +259,198 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
       );
     }
 
-    final predata = _predata!;
-
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.createProductionTitle)),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: DismissKeyboard.onTap(
-                context,
-                SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+      appBar: AppBar(
+        title: Text(
+          created != null
+              ? AppStrings.productionDetailsTitle
+              : AppStrings.createProductionTitle,
+        ),
+      ),
+      body: created != null
+          ? ProductionDetailsScreen(
+              productionId: created,
+              embedded: true,
+            )
+          : _buildForm(),
+    );
+  }
+
+  Widget _buildForm() {
+    final predata = _predata!;
+    final rawWarehouseOptions = predata.availableWarehouses;
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          Expanded(
+            child: DismissKeyboard.onTap(
+              context,
+              SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.mainInfo,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.organization,
+                              ),
+                              child: Text(predata.organizationName),
+                            ),
+                            const SizedBox(height: 12),
+                            InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.productionWarehouse,
+                              ),
+                              child: Text(widget.warehouse.name),
+                            ),
+                            const SizedBox(height: 12),
+                            if (rawWarehouseOptions.isEmpty)
                               Text(
-                                AppStrings.mainInfo,
-                                style: Theme.of(context).textTheme.titleMedium,
+                                AppStrings.noWarehouses,
+                                style: TextStyle(color: AppColors.error),
+                              )
+                            else
+                              _buildRawMaterialsSelector(rawWarehouseOptions),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _commentController,
+                              maxLines: null,
+                              minLines: 2,
+                              decoration: const InputDecoration(
+                                labelText: AppStrings.comment,
+                                hintText: AppStrings.commentHint,
+                                alignLabelWithHint: true,
                               ),
-                              const SizedBox(height: 12),
-                              InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.organization,
-                                ),
-                                child: Text(predata.organizationName),
-                              ),
-                              const SizedBox(height: 12),
-                              InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.warehouse,
-                                ),
-                                child: Text(widget.warehouse.name),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _commentController,
-                                maxLines: null,
-                                minLines: 2,
-                                decoration: const InputDecoration(
-                                  labelText: AppStrings.comment,
-                                  hintText: AppStrings.commentHint,
-                                  alignLabelWithHint: true,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 12),
+                            const CurrentUserAuthorRow(),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        AppStrings.productionItems,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      AddNomenclatureButton(
-                        organizationId: predata.organizationId,
-                        onProductSelected: _addProduct,
-                        isProductAdded: _isProductInLines,
-                      ),
-                      const SizedBox(height: 12),
-                      if (_lines.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            AppStrings.productionSearchPrompt,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                          ),
-                        )
-                      else
-                        for (final row in _lines)
-                          _ProductionLineCard(
-                            row: row,
-                            onRemove: () => _removeLine(row),
-                          ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.productionItems,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    AddNomenclatureButton(
+                      organizationId: predata.organizationId,
+                      onProductSelected: _addProduct,
+                      onProductRemoved: _removeProduct,
+                      isProductAdded: _isProductInLines,
+                      productQuantity: _productQuantity,
+                      onQuantityChanged: _changeProductQuantity,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_lines.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          AppStrings.productionSearchPrompt,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      )
+                    else
+                      for (final row in _lines)
+                        _ProductionLineCard(
+                          row: row,
+                          onRemove: () => _removeLine(row),
+                        ),
+                  ],
                 ),
               ),
             ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(AppStrings.createProduction),
-                  ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _submit,
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(AppStrings.createProduction),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openRawMaterialsSelector(
+    List<TransferWarehouseOption> warehouses,
+  ) async {
+    FocusScope.of(context).unfocus();
+    final selected = await Navigator.of(context).push<TransferWarehouseOption>(
+      MaterialPageRoute(
+        builder: (_) => SelectRecipientWarehouseScreen(
+          title: AppStrings.rawMaterialsWarehouse,
+          warehouses: warehouses,
+          selected: _selectedRawMaterialsWarehouse,
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedRawMaterialsWarehouse = selected);
+    }
+  }
+
+  Widget _buildRawMaterialsSelector(List<TransferWarehouseOption> warehouses) {
+    final selected = _selectedRawMaterialsWarehouse;
+
+    return InkWell(
+      onTap: () => _openRawMaterialsSelector(warehouses),
+      borderRadius: BorderRadius.circular(4),
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: AppStrings.rawMaterialsWarehouse,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selected?.name ?? AppStrings.selectRawMaterialsWarehouse,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: selected == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textSecondary,
             ),
           ],
         ),

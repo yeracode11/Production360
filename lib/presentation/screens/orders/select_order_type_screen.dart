@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/order_type.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/order_repository.dart';
+import '../../widgets/accompanying_product_label.dart';
 import 'create_order_screen.dart';
 
 /// Loads order types from 1C GET /mobile/zayavka/types.
@@ -270,11 +271,20 @@ class _OrderTypeCard extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  orderType.name,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      orderType.name,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    if (orderType.forInfo) ...[
+                      const SizedBox(height: 4),
+                      const AccompanyingProductLabel(),
+                    ],
+                  ],
                 ),
               ),
               Icon(

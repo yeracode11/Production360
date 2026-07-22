@@ -6,6 +6,7 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../widgets/document_author_row.dart';
 import '../../../core/utils/quantity_input.dart';
 import '../../../core/utils/receipt_display_name.dart';
 import '../../../domain/entities/receipt_order_request.dart';
@@ -14,6 +15,7 @@ import '../../../domain/entities/order_receipt_item.dart';
 import '../../../domain/entities/order_request.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../bloc/orders/orders_cubit.dart';
+import '../../widgets/accompanying_product_label.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
 
@@ -130,10 +132,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     for (final row in _receiptRows) {
       if (row.decision == ReceiptDecision.none) return false;
       if (_receivedAmountFromRow(row) == null) return false;
-      if (row.decision == ReceiptDecision.accepted &&
-          !row.receivedQuantityEdited) {
-        return false;
-      }
     }
     return true;
   }
@@ -144,13 +142,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
     for (final row in _receiptRows) {
       if (row.decision == ReceiptDecision.none) {
         return AppStrings.receiptItemsIncomplete;
-      }
-    }
-
-    for (final row in _receiptRows) {
-      if (row.decision == ReceiptDecision.accepted &&
-          !row.receivedQuantityEdited) {
-        return AppStrings.receiptQuantitiesRequired;
       }
     }
 
@@ -217,7 +208,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
       items.add(
         ReceiptOrderItemRequest(
           productId: row.item.id,
-          shipped: row.item.shipped,
+          shipped: formatQuantityFor1C(row.item.shipped),
           received: received,
         ),
       );
@@ -473,6 +464,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                       _ReadOnlyField(
                         label: AppStrings.orderType,
                         value: order.orderType!,
+                        trailing: order.orderTypeForInfo
+                            ? const AccompanyingProductLabel()
+                            : null,
                       ),
                     if (order.organization != null)
                       _ReadOnlyField(
@@ -494,11 +488,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
                         label: AppStrings.recipientWarehouse,
                         value: order.recipientWarehouse!,
                       ),
-                    if (order.author != null && order.author!.isNotEmpty)
-                      _ReadOnlyField(
-                        label: AppStrings.author,
-                        value: order.author!,
-                      ),
+                    ResolvedDocumentAuthorRow(
+                      documentId: order.id,
+                      authorLogin: order.authorLogin,
+                      author: order.author,
+                    ),
                     _ReadOnlyField(
                       label: AppStrings.shipmentDate,
                       value: _deliveryDateLabel(order),
@@ -599,7 +593,6 @@ class _ReceiptFormRow {
     required this.item,
     required this.decision,
     required this.receivedController,
-    this.receivedQuantityEdited = false,
   });
 
   factory _ReceiptFormRow.fromItem(
@@ -613,11 +606,10 @@ class _ReceiptFormRow {
     return _ReceiptFormRow(
       item: item,
       decision: decision,
-      receivedQuantityEdited: item.received > 0,
       receivedController: TextEditingController(
         text: item.received > 0
-            ? item.received.toString()
-            : item.shipped.toString(),
+            ? formatQuantityForInput(item.received)
+            : formatQuantityForInput(item.shipped),
       ),
     );
   }
@@ -632,7 +624,6 @@ class _ReceiptFormRow {
   final OrderReceiptItem item;
   ReceiptDecision decision;
   final TextEditingController receivedController;
-  bool receivedQuantityEdited;
 
   void dispose() {
     receivedController.dispose();
@@ -704,8 +695,8 @@ class _ReceiptCard extends StatelessWidget {
                     const SizedBox(height: 4),
                   ],
                   Text(
-                    '${AppStrings.itemOrdered}: ${item.ordered} ${item.unit} · '
-                    '${AppStrings.itemShipped}: ${item.shipped} ${item.unit}',
+                    '${AppStrings.itemOrdered}: ${formatQuantityForInput(item.ordered)} ${item.unit} · '
+                    '${AppStrings.itemShipped}: ${formatQuantityForInput(item.shipped)} ${item.unit}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -752,17 +743,14 @@ class _ReceiptCard extends StatelessWidget {
                                     : AppColors.success),
                           ),
                         ),
-                        onChanged: (_) {
-                          row.receivedQuantityEdited = true;
-                          onChanged();
-                        },
+                        onChanged: (_) => onChanged(),
                       ),
                     ),
                   ],
                   if (!canEdit) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '${AppStrings.itemReceived}: ${item.received} ${item.unit}',
+                      '${AppStrings.itemReceived}: ${formatQuantityForInput(item.received)} ${item.unit}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: isRejected
                                 ? AppColors.error
@@ -786,8 +774,7 @@ class _ReceiptCard extends StatelessWidget {
                 tooltip: AppStrings.acceptItem,
                 onPressed: () {
                   row.decision = ReceiptDecision.accepted;
-                  row.receivedQuantityEdited = false;
-                  final shipped = item.shipped.toString();
+                  final shipped = formatQuantityForInput(item.shipped);
                   row.receivedController.value = TextEditingValue(
                     text: shipped,
                     selection: TextSelection.collapsed(offset: shipped.length),
@@ -803,7 +790,6 @@ class _ReceiptCard extends StatelessWidget {
                 tooltip: AppStrings.rejectItem,
                 onPressed: () {
                   row.decision = ReceiptDecision.rejected;
-                  row.receivedQuantityEdited = true;
                   row.receivedController.value = const TextEditingValue(
                     text: '0',
                     selection: TextSelection.collapsed(offset: 1),
@@ -857,10 +843,15 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.label, required this.value});
+  const _ReadOnlyField({
+    required this.label,
+    required this.value,
+    this.trailing,
+  });
 
   final String label;
   final String value;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -879,7 +870,16 @@ class _ReadOnlyField extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                if (trailing != null) ...[
+                  const SizedBox(height: 4),
+                  trailing!,
+                ],
+              ],
+            ),
           ),
         ],
       ),

@@ -1,11 +1,14 @@
-/// Разбор булевых значений из JSON 1С (bool, 0/1, "true"/"false").
+/// Parses 1C boolean values from JSON (`true`, `"true"`, `1`).
 bool parseOneCBool(dynamic value, {bool defaultValue = false}) {
-  if (value is bool) return value;
   if (value == null) return defaultValue;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
   final normalized = value.toString().trim().toLowerCase();
-  if (normalized.isEmpty) return defaultValue;
-  return normalized == 'true' ||
-      normalized == '1' ||
-      normalized == 'yes' ||
-      normalized == 'да';
+  if (normalized == 'true' || normalized == '1' || normalized == 'да') {
+    return true;
+  }
+  if (normalized == 'false' || normalized == '0' || normalized == 'нет') {
+    return false;
+  }
+  return defaultValue;
 }

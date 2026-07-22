@@ -1,3 +1,4 @@
+import '../../core/utils/amount_parser.dart';
 import '../../domain/entities/order_item.dart';
 
 class OrderItemModel extends OrderItem {
@@ -12,7 +13,7 @@ class OrderItemModel extends OrderItem {
     return OrderItemModel(
       id: json['id'] as String?,
       name: json['name'] as String,
-      quantity: json['quantity'] as int,
+      quantity: parseAmountValue(json['quantity']).toDouble(),
       unit: json['unit'] as String?,
     );
   }
@@ -22,7 +23,8 @@ class OrderItemModel extends OrderItem {
     return OrderItemModel(
       id: _readOptionalString(json, ['id', 'Ссылка', 'productId']),
       name: _readString(json, ['Наименование', 'name', 'Name']),
-      quantity: _parseInt(json['amount'] ?? json['Количество']),
+      quantity:
+          parseAmountValue(json['amount'] ?? json['Количество']).toDouble(),
       unit: _readOptionalString(json, ['edIzm', 'ЕдИзм', 'unit']),
     );
   }
@@ -40,12 +42,6 @@ class OrderItemModel extends OrderItem {
   static String? _readOptionalString(Map<String, dynamic> json, List<String> keys) {
     final value = _readString(json, keys);
     return value.isEmpty ? null : value;
-  }
-
-  static int _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.parse(value.toString());
   }
 
   Map<String, dynamic> toJson() => {

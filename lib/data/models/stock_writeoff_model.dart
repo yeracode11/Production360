@@ -1,3 +1,4 @@
+import '../../core/utils/one_c_author.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/stock_writeoff.dart';
 
@@ -15,11 +16,14 @@ class StockWriteoffModel extends StockWriteoff {
     super.reasonName,
     super.comment,
     super.dateDisplay,
+    super.author,
+    super.authorLogin,
     super.items = const [],
   });
 
   factory StockWriteoffModel.from1CListJson(Map<String, dynamic> json) {
     final dateRaw = json['Дата'] as String;
+    final authorFields = OneCAuthorFields.parse(json);
     return StockWriteoffModel(
       id: json['Ссылка'] as String,
       number: json['Номер'] as String,
@@ -35,12 +39,15 @@ class StockWriteoffModel extends StockWriteoff {
       reasonName: _nullableString(json['ПричинаСписанияНаименование']) ??
           _nullableString(json['ПричинаНаименование']),
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
     );
   }
 
   factory StockWriteoffModel.from1CDetailJson(Map<String, dynamic> json) {
     final itemsJson = json['Товары'] as List<dynamic>? ?? [];
     final dateRaw = json['Дата'] as String?;
+    final authorFields = OneCAuthorFields.parse(json);
 
     return StockWriteoffModel(
       id: json['Ссылка'] as String,
@@ -57,6 +64,8 @@ class StockWriteoffModel extends StockWriteoff {
       reasonName: _nullableString(json['ПричинаСписанияНаименование']) ??
           _nullableString(json['ПричинаНаименование']),
       comment: _nullableString(json['Комментарий']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
       items: itemsJson
           .map(
             (e) => StockWriteoffItemModel.from1CJson(

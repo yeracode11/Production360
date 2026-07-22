@@ -5,13 +5,19 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/inventory_document.dart';
 import '../../../domain/repositories/inventory_repository.dart';
 
 class InventoryDetailsScreen extends StatefulWidget {
-  const InventoryDetailsScreen({super.key, required this.inventoryId});
+  const InventoryDetailsScreen({
+    super.key,
+    required this.inventoryId,
+    this.embedded = false,
+  });
 
   final String inventoryId;
+  final bool embedded;
 
   @override
   State<InventoryDetailsScreen> createState() => _InventoryDetailsScreenState();
@@ -60,16 +66,20 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+            ? _buildError()
+            : RefreshIndicator(
+                onRefresh: _loadDocument,
+                child: _buildContent(),
+              );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.inventoryDetailsTitle)),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? _buildError()
-              : RefreshIndicator(
-                  onRefresh: _loadDocument,
-                  child: _buildContent(),
-                ),
+      body: body,
     );
   }
 
@@ -134,18 +144,17 @@ class _InventoryDetailsScreenState extends State<InventoryDetailsScreen> {
                           '${document.date.year}',
                 ),
                 _DetailRow(
-                  label: AppStrings.status,
-                  value: document.isPosted
-                      ? AppStrings.inventoryPosted
-                      : AppStrings.inventoryNotPosted,
-                ),
-                _DetailRow(
                   label: AppStrings.organization,
                   value: document.organizationName,
                 ),
                 _DetailRow(
                   label: AppStrings.warehouse,
                   value: document.warehouseName,
+                ),
+                ResolvedDocumentAuthorRow(
+                  documentId: document.id,
+                  authorLogin: document.authorLogin,
+                  author: document.author,
                 ),
                 if (document.comment != null)
                   _DetailRow(

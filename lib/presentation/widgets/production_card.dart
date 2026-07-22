@@ -37,7 +37,7 @@ class ProductionCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Icons.precision_manufacturing_outlined,
+                    Icons.factory_outlined,
                     color: AppColors.deepBrownLight,
                     size: 20,
                   ),
@@ -55,9 +55,16 @@ class ProductionCard extends StatelessWidget {
               _InfoRow(label: AppStrings.date, value: dateLabel),
               const SizedBox(height: 4),
               _InfoRow(
-                label: AppStrings.warehouse,
+                label: AppStrings.productionWarehouse,
                 value: document.warehouseName,
               ),
+              if (document.rawMaterialsWarehouseName != null) ...[
+                const SizedBox(height: 4),
+                _InfoRow(
+                  label: AppStrings.rawMaterialsWarehouse,
+                  value: document.rawMaterialsWarehouseName!,
+                ),
+              ],
               if (document.comment != null) ...[
                 const SizedBox(height: 4),
                 _InfoRow(label: AppStrings.comment, value: document.comment!),

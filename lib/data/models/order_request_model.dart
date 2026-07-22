@@ -1,3 +1,5 @@
+import '../../core/utils/one_c_author.dart';
+import '../../core/utils/one_c_bool.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/enums/order_status.dart';
 import '../../domain/entities/order_request.dart';
@@ -16,6 +18,7 @@ class OrderRequestModel extends OrderRequest {
     super.createdDate,
     super.orderType,
     super.orderTypeId,
+    super.orderTypeForInfo = false,
     super.comment,
     super.statusLabel,
     super.organization,
@@ -23,6 +26,7 @@ class OrderRequestModel extends OrderRequest {
     super.recipientOrganization,
     super.recipientWarehouse,
     super.author,
+    super.authorLogin,
     super.createdDateDisplay,
     super.deliveryDateDisplay,
     super.items = const [],
@@ -46,6 +50,7 @@ class OrderRequestModel extends OrderRequest {
           : null,
       status: statusFrom1C(json['СтатусЗаказа'] as String),
       orderType: json['ВидЗаказа'] as String?,
+      orderTypeForInfo: parseOneCBool(json['forInfo']),
       statusLabel: json['СтатусЗаказа'] as String?,
       createdDateDisplay: json['Дата'] != null
           ? (json['Дата'] as String).trim()
@@ -67,6 +72,7 @@ class OrderRequestModel extends OrderRequest {
   factory OrderRequestModel.from1CDetailJson(Map<String, dynamic> json) {
     final productsJson = json['Товары'] as List<dynamic>? ?? [];
     final receiptJson = json['ТоварыПриемки'] as List<dynamic>? ?? [];
+    final authorFields = OneCAuthorFields.parse(json);
 
     return OrderRequestModel(
       id: json['Ссылка'] as String,
@@ -81,13 +87,15 @@ class OrderRequestModel extends OrderRequest {
       status: statusFrom1C(json['СтатусЗаказа'] as String),
       orderType: json['ВидЗаказа'] as String?,
       orderTypeId: json['ВидЗаказаСсылка'] as String?,
+      orderTypeForInfo: parseOneCBool(json['forInfo']),
       comment: _nullableString(json['Комментарий']),
       statusLabel: json['СтатусЗаказа'] as String?,
       organization: json['Организация'] as String?,
       warehouseName: json['Склад'] as String?,
       recipientOrganization: json['ОрганизацияПолучатель'] as String?,
       recipientWarehouse: json['СкладПолучатель'] as String?,
-      author: _nullableString(json['Автор']),
+      author: authorFields.name,
+      authorLogin: authorFields.login,
       createdDateDisplay: json['ДатаПредставление'] as String?,
       deliveryDateDisplay: json['ДатаОтгрузкиПредставление'] as String?,
       items: productsJson
@@ -174,6 +182,7 @@ class OrderRequestModel extends OrderRequest {
       status: status,
       orderType: orderType,
       orderTypeId: orderTypeId,
+      orderTypeForInfo: orderTypeForInfo,
       comment: comment ?? this.comment,
       statusLabel: statusLabel,
       organization: organization,
@@ -181,6 +190,7 @@ class OrderRequestModel extends OrderRequest {
       recipientOrganization: recipientOrganization,
       recipientWarehouse: recipientWarehouse,
       author: author,
+      authorLogin: authorLogin,
       createdDateDisplay: createdDateDisplay,
       deliveryDateDisplay: deliveryDateDisplay,
       items: items,

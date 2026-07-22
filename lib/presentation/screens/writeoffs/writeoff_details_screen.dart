@@ -5,13 +5,19 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../core/utils/order_item_display.dart';
+import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/stock_writeoff.dart';
 import '../../../domain/repositories/writeoff_repository.dart';
 
 class WriteoffDetailsScreen extends StatefulWidget {
-  const WriteoffDetailsScreen({super.key, required this.writeoffId});
+  const WriteoffDetailsScreen({
+    super.key,
+    required this.writeoffId,
+    this.embedded = false,
+  });
 
   final String writeoffId;
+  final bool embedded;
 
   @override
   State<WriteoffDetailsScreen> createState() => _WriteoffDetailsScreenState();
@@ -60,16 +66,20 @@ class _WriteoffDetailsScreenState extends State<WriteoffDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+            ? _buildError()
+            : RefreshIndicator(
+                onRefresh: _loadWriteoff,
+                child: _buildContent(),
+              );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.writeoffDetailsTitle)),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? _buildError()
-              : RefreshIndicator(
-                  onRefresh: _loadWriteoff,
-                  child: _buildContent(),
-                ),
+      body: body,
     );
   }
 
@@ -134,12 +144,6 @@ class _WriteoffDetailsScreenState extends State<WriteoffDetailsScreen> {
                           '${writeoff.date.year}',
                 ),
                 _DetailRow(
-                  label: AppStrings.status,
-                  value: writeoff.isPosted
-                      ? AppStrings.writeoffPosted
-                      : AppStrings.writeoffNotPosted,
-                ),
-                _DetailRow(
                   label: AppStrings.organization,
                   value: writeoff.organizationName,
                 ),
@@ -152,6 +156,11 @@ class _WriteoffDetailsScreenState extends State<WriteoffDetailsScreen> {
                     label: AppStrings.writeoffReason,
                     value: writeoff.reasonName!,
                   ),
+                ResolvedDocumentAuthorRow(
+                  documentId: writeoff.id,
+                  authorLogin: writeoff.authorLogin,
+                  author: writeoff.author,
+                ),
                 if (writeoff.comment != null)
                   _DetailRow(
                     label: AppStrings.comment,

@@ -11,8 +11,12 @@ class ProductionDocument extends Equatable {
     required this.organizationName,
     required this.warehouseId,
     required this.warehouseName,
+    this.rawMaterialsWarehouseName,
+    this.departmentName,
     this.comment,
     this.dateDisplay,
+    this.author,
+    this.authorLogin,
     this.items = const [],
   });
 
@@ -24,8 +28,12 @@ class ProductionDocument extends Equatable {
   final String organizationName;
   final String warehouseId;
   final String warehouseName;
+  final String? rawMaterialsWarehouseName;
+  final String? departmentName;
   final String? comment;
   final String? dateDisplay;
+  final String? author;
+  final String? authorLogin;
   final List<ProductionDocumentItem> items;
 
   @override
@@ -38,8 +46,12 @@ class ProductionDocument extends Equatable {
         organizationName,
         warehouseId,
         warehouseName,
+        rawMaterialsWarehouseName,
+        departmentName,
         comment,
         dateDisplay,
+        author,
+        authorLogin,
         items,
       ];
 }

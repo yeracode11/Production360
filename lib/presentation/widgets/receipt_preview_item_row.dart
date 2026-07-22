@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/amount_parser.dart';
 import 'receipt_preview_item.dart';
 
 class ReceiptPreviewItemRow extends StatelessWidget {
@@ -79,8 +80,8 @@ class ReceiptPreviewItemRow extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${AppStrings.itemOrdered}: ${item.ordered} ${item.unit} · '
-            '${AppStrings.itemShipped}: ${item.shipped} ${item.unit}',
+            '${AppStrings.itemOrdered}: ${formatQuantityForInput(item.ordered)} ${item.unit} · '
+            '${AppStrings.itemShipped}: ${formatQuantityForInput(item.shipped)} ${item.unit}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -88,7 +89,7 @@ class ReceiptPreviewItemRow extends StatelessWidget {
           if (isAccepted) ...[
             const SizedBox(height: 2),
             Text(
-              '${AppStrings.itemReceived}: ${item.received} ${item.unit}',
+              '${AppStrings.itemReceived}: ${formatQuantityForInput(item.received)} ${item.unit}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.success,
                     fontWeight: FontWeight.w600,

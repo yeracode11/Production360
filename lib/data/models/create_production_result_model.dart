@@ -11,11 +11,11 @@ class CreateProductionResultModel extends CreateProductionResult {
   });
 
   factory CreateProductionResultModel.from1CJson(Map<String, dynamic> json) {
-    final dateRaw = json['Дата'] as String;
+    final dateRaw = json['Дата'] as String?;
     return CreateProductionResultModel(
       id: json['Ссылка'] as String,
       number: json['Номер'] as String,
-      date: parseOneCDate(dateRaw),
+      date: dateRaw != null ? parseOneCDate(dateRaw) : DateTime.now(),
       dateDisplay: dateRaw,
       isPosted: json['Проведен'] as bool? ?? false,
     );

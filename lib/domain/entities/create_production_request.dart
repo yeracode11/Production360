@@ -3,17 +3,27 @@ import 'package:equatable/equatable.dart';
 /// POST /mobile/proizvodstvo/create
 class CreateProductionRequest extends Equatable {
   const CreateProductionRequest({
-    required this.warehouseId,
+    required this.productsWarehouseId,
+    required this.rawMaterialsWarehouseId,
     required this.items,
     this.comment,
   });
 
-  final String warehouseId;
+  /// Склад продукций (`skladID`) — текущая точка с главной страницы.
+  final String productsWarehouseId;
+
+  /// Склад сырья/заготовки (`skladSyriaID`).
+  final String rawMaterialsWarehouseId;
   final String? comment;
   final List<CreateProductionItemRequest> items;
 
   @override
-  List<Object?> get props => [warehouseId, comment, items];
+  List<Object?> get props => [
+        productsWarehouseId,
+        rawMaterialsWarehouseId,
+        comment,
+        items,
+      ];
 }
 
 class CreateProductionItemRequest extends Equatable {
