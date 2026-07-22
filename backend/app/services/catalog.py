@@ -1,11 +1,12 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Product, Unit
+from app.models import CatalogVisibleGroup, Product, Unit
+from app.models.catalog_cache import UNIVERSAL_ORG_KEY
 
 ACTIVE_PRODUCT_COMMENT = "q_active"
 STOCK_PRODUCT_TYPE = "Запас"
@@ -30,64 +31,138 @@ def _is_root_parent(parent_id: uuid.UUID | None) -> bool:
     return parent_id is None or parent_id == EMPTY_PARENT_UUID
 
 
-def _mobile_child_exists_sql(parent_column: str, organization_id: str | None) -> str:
-    org_id = (organization_id or "").strip()
-    org_clause = (
-        "child.usage_places IS NULL "
-        "OR jsonb_typeof(child.usage_places::jsonb) <> 'array' "
-        "OR COALESCE(jsonb_array_length(child.usage_places::jsonb), 0) = 0 "
-        "OR EXISTS ("
-        "  SELECT 1 FROM jsonb_array_elements(child.usage_places::jsonb) elem "
-        "  WHERE elem->>'type' = 'organization' "
-        "  AND lower(elem->>'id') = lower(:org_id)"
-        ")"
-        if org_id
-        else "TRUE"
-    )
-    return (
-        "EXISTS ("
-        "SELECT 1 FROM products child "
-        f"WHERE child.parent_id = {parent_column} "
-        "AND child.is_deleted = false "
-        "AND child.is_group = false "
-        "AND child.show_in_mobile_app = true "
-        "AND child.comment = :active_comment "
-        "AND child.product_type = :stock_type "
-        f"AND ({org_clause})"
-        ")"
+def _normalize_parent_id(parent_id: uuid.UUID | None) -> uuid.UUID | None:
+    if parent_id is None or parent_id == EMPTY_PARENT_UUID:
+        return None
+    return parent_id
+
+
+def _extract_organization_ids(
+    usage_places: list[dict[str, str]] | None,
+) -> list[str] | None:
+    """NULL — для всех организаций; [] — не привязан ни к одной."""
+    if usage_places is None:
+        return None
+    if not usage_places:
+        return None
+
+    org_ids: list[str] = []
+    seen: set[str] = set()
+    for place in usage_places:
+        if str(place.get("type") or "").strip().lower() != "organization":
+            continue
+        org_id = str(place.get("id") or "").strip().lower()
+        if not org_id or org_id in seen:
+            continue
+        seen.add(org_id)
+        org_ids.append(org_id)
+    return org_ids if org_ids else []
+
+
+def _organization_filter(organization_id: str | None):
+    org_id = (organization_id or "").strip().lower()
+    if not org_id:
+        return None
+    return or_(
+        Product.organization_ids.is_(None),
+        Product.organization_ids.contains([org_id]),
     )
 
 
-def _non_empty_group_condition(organization_id: str | None):
-    """Группа не пустая: есть товар для мобилки или непустая подгруппа."""
-    mobile_at_level = _mobile_child_exists_sql("products.id", organization_id)
-    mobile_in_subgroup = _mobile_child_exists_sql("child.id", organization_id)
-    subgroup_with_content = (
-        "EXISTS ("
-        "SELECT 1 FROM products child "
-        "WHERE child.parent_id = products.id "
-        "AND child.is_deleted = false "
-        "AND child.is_group = true "
-        f"AND (({mobile_in_subgroup}) OR EXISTS ("
-        "  SELECT 1 FROM products nested "
-        "  WHERE nested.parent_id = child.id "
-        "  AND nested.is_deleted = false "
-        "  AND nested.is_group = true"
-        "))"
-        ")"
-    )
-    condition_sql = f"(({mobile_at_level}) OR ({subgroup_with_content}))"
-    org_id = (organization_id or "").strip()
-    if org_id:
-        return text(condition_sql).bindparams(
-            org_id=org_id,
-            active_comment=ACTIVE_PRODUCT_COMMENT,
-            stock_type=STOCK_PRODUCT_TYPE,
+def _visible_group_org_keys(organization_ids: list[str] | None) -> list[str]:
+    if organization_ids is None:
+        return [UNIVERSAL_ORG_KEY]
+    if not organization_ids:
+        return []
+    return [org_id.lower() for org_id in organization_ids]
+
+
+def _visible_group_parent_filter(
+    *,
+    parent_id: uuid.UUID | None,
+    parent_is_root: bool,
+):
+    if parent_is_root:
+        return CatalogVisibleGroup.parent_id.is_(None)
+    if parent_id is not None:
+        return CatalogVisibleGroup.parent_id == parent_id
+    return CatalogVisibleGroup.parent_id.is_(None)
+
+
+async def backfill_organization_ids(session: AsyncSession) -> int:
+    """Заполнить organization_ids из usage_places для существующих строк."""
+    result = await session.execute(select(Product.id, Product.usage_places))
+    updated = 0
+    for product_id, usage_places in result.all():
+        if usage_places is None or not isinstance(usage_places, list):
+            org_ids = None
+        else:
+            org_ids = _extract_organization_ids(usage_places)
+
+        await session.execute(
+            Product.__table__.update()
+            .where(Product.id == product_id)
+            .values(organization_ids=org_ids)
         )
-    return text(condition_sql).bindparams(
-        active_comment=ACTIVE_PRODUCT_COMMENT,
-        stock_type=STOCK_PRODUCT_TYPE,
+        updated += 1
+
+    await session.commit()
+    return updated
+
+
+async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
+    """Пересчитать кэш групп с мобильной номенклатурой (вызывается после sync)."""
+    await session.execute(delete(CatalogVisibleGroup))
+
+    group_rows = await session.execute(
+        select(Product.id, Product.parent_id).where(
+            Product.is_group.is_(True),
+            Product.is_deleted.is_(False),
+        )
     )
+    parent_by_group: dict[uuid.UUID, uuid.UUID | None] = {
+        group_id: _normalize_parent_id(parent_id)
+        for group_id, parent_id in group_rows.all()
+    }
+
+    product_rows = await session.execute(
+        select(Product.parent_id, Product.organization_ids).where(
+            Product.is_deleted.is_(False),
+            Product.is_group.is_(False),
+            Product.show_in_mobile_app.is_(True),
+            Product.comment == ACTIVE_PRODUCT_COMMENT,
+            Product.product_type == STOCK_PRODUCT_TYPE,
+        )
+    )
+
+    entries: set[tuple[str, uuid.UUID | None, uuid.UUID]] = set()
+    for parent_id, organization_ids in product_rows.all():
+        org_keys = _visible_group_org_keys(organization_ids)
+        if not org_keys:
+            continue
+
+        group_id = _normalize_parent_id(parent_id)
+        while group_id is not None and group_id in parent_by_group:
+            group_parent = parent_by_group[group_id]
+            for org_key in org_keys:
+                entries.add((org_key, group_parent, group_id))
+            group_id = group_parent
+
+    if entries:
+        await session.execute(
+            insert(CatalogVisibleGroup),
+            [
+                {
+                    "organization_key": org_key,
+                    "parent_id": group_parent,
+                    "group_id": group_id,
+                }
+                for org_key, group_parent, group_id in entries
+            ],
+        )
+
+    await session.commit()
+    return len(entries)
 
 
 def _parse_bool(value: Any, default: bool = False) -> bool:
@@ -197,6 +272,8 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             if has_usage_places
             else None,
         }
+        if has_usage_places:
+            values["organization_ids"] = _extract_organization_ids(values["usage_places"])
         update_fields = {
             "parent_id": values["parent_id"],
             "is_group": values["is_group"],
@@ -216,6 +293,7 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             update_fields["show_in_mobile_app"] = values["show_in_mobile_app"]
         if has_usage_places:
             update_fields["usage_places"] = values["usage_places"]
+            update_fields["organization_ids"] = values["organization_ids"]
         stmt = insert(Product).values(**values)
         stmt = stmt.on_conflict_do_update(
             index_elements=[Product.id],
@@ -225,6 +303,7 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
         upserted += 1
 
     await session.commit()
+    await rebuild_catalog_visible_groups(session)
     return upserted
 
 
@@ -312,51 +391,55 @@ async def list_products(
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[Product], int]:
-    stmt = select(Product)
-
-    if not include_deleted:
-        stmt = stmt.where(Product.is_deleted.is_(False))
+    org_id = (organization_id or "").strip().lower()
+    org_filter = _organization_filter(organization_id)
 
     if groups_only:
-        stmt = stmt.where(Product.is_group.is_(True))
-        stmt = stmt.where(_non_empty_group_condition(organization_id))
-    elif not include_groups:
-        stmt = stmt.where(Product.is_group.is_(False))
-
-    if parent_is_root:
-        stmt = stmt.where(
-            or_(
-                Product.parent_id.is_(None),
-                Product.parent_id == EMPTY_PARENT_UUID,
+        visible_group_exists = (
+            select(1)
+            .select_from(CatalogVisibleGroup)
+            .where(CatalogVisibleGroup.group_id == Product.id)
+            .where(
+                _visible_group_parent_filter(
+                    parent_id=parent_id,
+                    parent_is_root=parent_is_root,
+                )
             )
         )
-    elif parent_id is not None:
-        stmt = stmt.where(Product.parent_id == parent_id)
-
-    if active_only:
-        stmt = stmt.where(Product.comment == ACTIVE_PRODUCT_COMMENT)
-    if stock_only:
-        stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
-    if mobile_only:
-        stmt = stmt.where(Product.show_in_mobile_app.is_(True))
-    if organization_id:
-        org_id = organization_id.strip()
-        stmt = stmt.where(
-            or_(
-                Product.usage_places.is_(None),
-                text(
-                    "jsonb_typeof(products.usage_places::jsonb) <> 'array' "
-                    "OR COALESCE(jsonb_array_length(products.usage_places::jsonb), 0) = 0"
-                ),
-                text(
-                    "jsonb_typeof(products.usage_places::jsonb) = 'array' AND EXISTS ("
-                    "SELECT 1 FROM jsonb_array_elements(products.usage_places::jsonb) AS elem "
-                    "WHERE elem->>'type' = 'organization' "
-                    "AND lower(elem->>'id') = lower(:org_id)"
-                    ")"
-                ).bindparams(org_id=org_id),
+        if org_id:
+            visible_group_exists = visible_group_exists.where(
+                CatalogVisibleGroup.organization_key.in_([org_id, UNIVERSAL_ORG_KEY])
             )
+
+        stmt = (
+            select(Product)
+            .where(Product.is_deleted.is_(False))
+            .where(Product.is_group.is_(True))
+            .where(exists(visible_group_exists))
         )
+    else:
+        stmt = select(Product).where(Product.is_deleted.is_(False))
+        if not include_groups:
+            stmt = stmt.where(Product.is_group.is_(False))
+
+        if parent_is_root:
+            stmt = stmt.where(
+                or_(
+                    Product.parent_id.is_(None),
+                    Product.parent_id == EMPTY_PARENT_UUID,
+                )
+            )
+        elif parent_id is not None:
+            stmt = stmt.where(Product.parent_id == parent_id)
+
+        if active_only:
+            stmt = stmt.where(Product.comment == ACTIVE_PRODUCT_COMMENT)
+        if stock_only:
+            stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
+        if mobile_only:
+            stmt = stmt.where(Product.show_in_mobile_app.is_(True))
+        if org_filter is not None:
+            stmt = stmt.where(org_filter)
 
     if search:
         pattern = f"%{search.strip()}%"

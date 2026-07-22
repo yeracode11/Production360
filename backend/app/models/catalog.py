@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -28,6 +28,30 @@ class Unit(Base):
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (
+        Index(
+            "ix_products_browse_products",
+            "parent_id",
+            "is_deleted",
+            "is_group",
+            "show_in_mobile_app",
+            "comment",
+            "product_type",
+            postgresql_where=text("is_deleted = false AND is_group = false"),
+        ),
+        Index(
+            "ix_products_browse_groups",
+            "parent_id",
+            "is_deleted",
+            "is_group",
+            postgresql_where=text("is_deleted = false AND is_group = true"),
+        ),
+        Index(
+            "ix_products_organization_ids",
+            "organization_ids",
+            postgresql_using="gin",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -50,6 +74,9 @@ class Product(Base):
         Boolean, nullable=False, default=False, index=True
     )
     usage_places: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    organization_ids: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(64)), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

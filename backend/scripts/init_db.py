@@ -4,7 +4,7 @@
 import asyncio
 
 from app.database import engine
-from app.models import Product, Unit  # noqa: F401 — регистрация моделей
+from app.models import CatalogVisibleGroup, Product, Unit  # noqa: F401 — регистрация моделей
 from app.models.base import Base
 
 
@@ -12,7 +12,7 @@ async def main() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()
-    print("OK: tables created (units, products)")
+    print("OK: tables created (units, products, catalog_visible_groups)")
 
 
 if __name__ == "__main__":

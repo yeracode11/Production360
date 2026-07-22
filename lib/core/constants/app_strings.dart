@@ -220,6 +220,7 @@ abstract final class AppStrings {
   static const String nomenclatureRootGroups = 'Группы номенклатуры';
   static const String nomenclatureGroups = 'Группы';
   static const String nomenclatureProducts = 'Товары';
+  static const String nomenclatureShowProducts = 'Показать товары группы';
   static const String nomenclatureGlobalSearch = 'Поиск номенклатуры';
   static const String nomenclatureEmptyGroup =
       'Нет подгрупп или товаров для мобилки в этой группе. '

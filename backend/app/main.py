@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.catalog import router
 from app.config import settings
 from app.database import engine
-from app.models import Product, Unit  # noqa: F401
+from app.models import CatalogVisibleGroup, Product, Unit  # noqa: F401
 from app.models.base import Base
 
 logger = logging.getLogger(__name__)
