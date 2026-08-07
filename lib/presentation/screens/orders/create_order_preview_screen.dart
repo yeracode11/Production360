@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 import '../../widgets/accompanying_product_label.dart';
 import '../../widgets/document_author_row.dart';
 import '../../widgets/order_create_preview_item.dart';
@@ -37,9 +38,7 @@ class CreateOrderPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.createOrderPreviewTitle),
-      ),
+      appBar: AppBarWithKeyboard(title: AppStrings.createOrderPreviewTitle),
       body: CreateOrderPreviewContent(data: data),
       bottomNavigationBar: SafeArea(
         child: Padding(

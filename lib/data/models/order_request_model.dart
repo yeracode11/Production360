@@ -38,6 +38,7 @@ class OrderRequestModel extends OrderRequest {
     Map<String, dynamic> json, {
     required String outletId,
   }) {
+    final authorFields = OneCAuthorFields.parse(json);
     return OrderRequestModel(
       id: json['Ссылка'] as String,
       orderNumber: json['Номер'] as String,
@@ -52,6 +53,8 @@ class OrderRequestModel extends OrderRequest {
       orderType: json['ВидЗаказа'] as String?,
       orderTypeForInfo: parseOneCBool(json['forInfo']),
       statusLabel: json['СтатусЗаказа'] as String?,
+      author: authorFields.name,
+      authorLogin: authorFields.login,
       createdDateDisplay: json['Дата'] != null
           ? (json['Дата'] as String).trim()
           : null,

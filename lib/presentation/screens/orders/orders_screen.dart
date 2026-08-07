@@ -108,6 +108,12 @@ class _OrdersScreenState extends State<OrdersScreen>
                   );
                 }
 
+                if (warehouseState is! WarehouseLoaded) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final warehouseId = warehouseState.selectedWarehouse.id;
+
                 return BlocBuilder<OrdersCubit, OrdersState>(
                   builder: (context, state) {
                     if (state is OrdersLoading) {
@@ -148,6 +154,9 @@ class _OrdersScreenState extends State<OrdersScreen>
                                 )
                                 .toList(),
                             emptyMessage: AppStrings.noOrders,
+                            onReturnFromDetails: () => context
+                                .read<OrdersCubit>()
+                                .loadOrders(warehouseId),
                           ),
                           _RefreshableOrderList(
                             onRefresh: _onRefresh,
@@ -158,10 +167,14 @@ class _OrdersScreenState extends State<OrdersScreen>
                                 )
                                 .toList(),
                             emptyMessage: AppStrings.noOrders,
+                            onReturnFromDetails: () => context
+                                .read<OrdersCubit>()
+                                .loadOrders(warehouseId),
                           ),
                           _CompletedOrdersTab(
                             state: state,
                             onRefresh: _onRefresh,
+                            warehouseId: warehouseId,
                             onWeekSelected: (date) {
                               context
                                   .read<OrdersCubit>()
@@ -201,11 +214,13 @@ class _CompletedOrdersTab extends StatelessWidget {
   const _CompletedOrdersTab({
     required this.state,
     required this.onRefresh,
+    required this.warehouseId,
     required this.onWeekSelected,
   });
 
   final OrdersLoaded state;
   final Future<void> Function() onRefresh;
+  final String warehouseId;
   final ValueChanged<DateTime> onWeekSelected;
 
   @override
@@ -229,6 +244,8 @@ class _CompletedOrdersTab extends StatelessWidget {
             emptyMessage: hasOtherCompleted
                 ? AppStrings.noOrdersForWeek
                 : AppStrings.noOrders,
+            onReturnFromDetails: () =>
+                context.read<OrdersCubit>().loadOrders(warehouseId),
           ),
         ),
       ],
@@ -241,11 +258,13 @@ class _RefreshableOrderList extends StatelessWidget {
     required this.onRefresh,
     required this.orders,
     required this.emptyMessage,
+    this.onReturnFromDetails,
   });
 
   final Future<void> Function() onRefresh;
   final List<OrderRequest> orders;
   final String emptyMessage;
+  final VoidCallback? onReturnFromDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +296,10 @@ class _RefreshableOrderList extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: orders.length,
-        itemBuilder: (context, index) => OrderCard(order: orders[index]),
+        itemBuilder: (context, index) => OrderCard(
+          order: orders[index],
+          onReturnFromDetails: onReturnFromDetails,
+        ),
       ),
     );
   }

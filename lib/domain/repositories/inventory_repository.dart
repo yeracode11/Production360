@@ -1,3 +1,4 @@
+import '../entities/complete_inventory_request.dart';
 import '../entities/create_inventory_request.dart';
 import '../entities/create_inventory_result.dart';
 import '../entities/inventory_document.dart';
@@ -12,4 +13,8 @@ abstract class InventoryRepository {
   Future<InventoryDocument?> getInventoryById(String inventoryId);
 
   Future<CreateInventoryResult> createInventory(CreateInventoryRequest request);
+
+  Future<CreateInventoryResult> completeInventory(
+    CompleteInventoryRequest request,
+  );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 import '../../widgets/receipt_preview_item.dart';
 import '../../widgets/receipt_preview_item_row.dart';
 
@@ -20,8 +21,8 @@ class ReceiptPreviewScreen extends StatelessWidget {
     final summary = buildReceiptPreviewSummary(items);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
+      appBar: AppBarWithKeyboard(
+        titleWidget: Text(
           orderNumber != null
               ? '${AppStrings.receiptPreviewTitle} № $orderNumber'
               : AppStrings.receiptPreviewTitle,

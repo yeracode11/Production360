@@ -17,7 +17,9 @@ import '../../bloc/production/production_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/document_author_row.dart';
+import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
 import '../production/production_details_screen.dart';
 import '../transfers/select_recipient_warehouse_screen.dart';
 
@@ -35,7 +37,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
   final _commentController = TextEditingController();
   final List<_ProductionLineRow> _lines = [];
   TransferPredata? _predata;
-  TransferWarehouseOption? _selectedRawMaterialsWarehouse;
+  TransferWarehouseOption? _selectedProductsWarehouse;
   bool _isLoadingPredata = true;
   String? _predataError;
   bool _isSaving = false;
@@ -60,7 +62,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
       if (!mounted) return;
       setState(() {
         _predata = predata;
-        _selectedRawMaterialsWarehouse = null;
+        _selectedProductsWarehouse = null;
         _isLoadingPredata = false;
       });
     } catch (e) {
@@ -124,8 +126,8 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     return null;
   }
 
-  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
-    if (quantity <= 0) {
+  void _changeProductQuantity(NomenclatureProduct product, num? quantity) {
+    if (quantity == null || quantity <= 0) {
       _removeProduct(product);
       return;
     }
@@ -147,9 +149,9 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
   }
 
   Future<void> _submit() async {
-    if (_selectedRawMaterialsWarehouse == null) {
+    if (_selectedProductsWarehouse == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.selectRawMaterialsWarehouse)),
+        const SnackBar(content: Text(AppStrings.selectProductionWarehouse)),
       );
       return;
     }
@@ -186,8 +188,8 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     try {
       final result = await sl<ProductionRepository>().createProduction(
         CreateProductionRequest(
-          productsWarehouseId: widget.warehouse.id,
-          rawMaterialsWarehouseId: _selectedRawMaterialsWarehouse!.id,
+          productsWarehouseId: _selectedProductsWarehouse!.id,
+          rawMaterialsWarehouseId: widget.warehouse.id,
           comment: _commentController.text.trim().isEmpty
               ? null
               : _commentController.text.trim(),
@@ -227,15 +229,15 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     final created = _createdDocumentId;
 
     if (_isLoadingPredata) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.createProductionTitle)),
-        body: const Center(child: CircularProgressIndicator()),
+      return const DocumentScreenScaffold(
+        title: AppStrings.createProductionTitle,
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_predataError != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.createProductionTitle)),
+      return DocumentScreenScaffold(
+        title: AppStrings.createProductionTitle,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -259,14 +261,10 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          created != null
-              ? AppStrings.productionDetailsTitle
-              : AppStrings.createProductionTitle,
-        ),
-      ),
+    return DocumentScreenScaffold(
+      title: created != null
+          ? AppStrings.productionDetailsTitle
+          : AppStrings.createProductionTitle,
       body: created != null
           ? ProductionDetailsScreen(
               productionId: created,
@@ -278,7 +276,7 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
 
   Widget _buildForm() {
     final predata = _predata!;
-    final rawWarehouseOptions = predata.availableWarehouses;
+    final productsWarehouseOptions = predata.availableWarehouses;
 
     return Form(
       key: _formKey,
@@ -314,20 +312,22 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
                             const SizedBox(height: 12),
                             InputDecorator(
                               decoration: const InputDecoration(
-                                labelText: AppStrings.productionWarehouse,
+                                labelText: AppStrings.rawMaterialsWarehouse,
                               ),
                               child: Text(widget.warehouse.name),
                             ),
                             const SizedBox(height: 12),
-                            if (rawWarehouseOptions.isEmpty)
+                            if (productsWarehouseOptions.isEmpty)
                               Text(
                                 AppStrings.noWarehouses,
                                 style: TextStyle(color: AppColors.error),
                               )
                             else
-                              _buildRawMaterialsSelector(rawWarehouseOptions),
+                              _buildProductsWarehouseSelector(
+                                productsWarehouseOptions,
+                              ),
                             const SizedBox(height: 12),
-                            TextFormField(
+                            OnScreenKeyboardTextField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -407,39 +407,41 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
     );
   }
 
-  Future<void> _openRawMaterialsSelector(
+  Future<void> _openProductsWarehouseSelector(
     List<TransferWarehouseOption> warehouses,
   ) async {
     FocusScope.of(context).unfocus();
     final selected = await Navigator.of(context).push<TransferWarehouseOption>(
       MaterialPageRoute(
         builder: (_) => SelectRecipientWarehouseScreen(
-          title: AppStrings.rawMaterialsWarehouse,
+          title: AppStrings.productionWarehouse,
           warehouses: warehouses,
-          selected: _selectedRawMaterialsWarehouse,
+          selected: _selectedProductsWarehouse,
         ),
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _selectedRawMaterialsWarehouse = selected);
+      setState(() => _selectedProductsWarehouse = selected);
     }
   }
 
-  Widget _buildRawMaterialsSelector(List<TransferWarehouseOption> warehouses) {
-    final selected = _selectedRawMaterialsWarehouse;
+  Widget _buildProductsWarehouseSelector(
+    List<TransferWarehouseOption> warehouses,
+  ) {
+    final selected = _selectedProductsWarehouse;
 
     return InkWell(
-      onTap: () => _openRawMaterialsSelector(warehouses),
+      onTap: () => _openProductsWarehouseSelector(warehouses),
       borderRadius: BorderRadius.circular(4),
       child: InputDecorator(
         decoration: const InputDecoration(
-          labelText: AppStrings.rawMaterialsWarehouse,
+          labelText: AppStrings.productionWarehouse,
         ),
         child: Row(
           children: [
             Expanded(
               child: Text(
-                selected?.name ?? AppStrings.selectRawMaterialsWarehouse,
+                selected?.name ?? AppStrings.selectProductionWarehouse,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: selected == null
                           ? AppColors.textSecondary
@@ -515,7 +517,7 @@ class _ProductionLineCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            TextFormField(
+            OnScreenKeyboardTextField(
               controller: row.quantityController,
               decoration: InputDecoration(
                 labelText: AppStrings.itemQuantity,

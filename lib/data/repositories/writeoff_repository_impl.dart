@@ -41,13 +41,21 @@ class WriteoffRepositoryImpl implements WriteoffRepository {
       _throwIfOneCError(json, 'Ошибка загрузки списаний');
 
       final docs = json['data'] as List<dynamic>? ?? [];
-      return docs
+      final writeoffs = docs
           .map(
             (e) => StockWriteoffModel.from1CListJson(
               e as Map<String, dynamic>,
             ),
           )
           .toList();
+      for (final writeoff in writeoffs) {
+        await DocumentAuthorSupport.cacheDocumentAuthor(
+          documentId: writeoff.id,
+          authorLogin: writeoff.authorLogin,
+          author: writeoff.author,
+        );
+      }
+      return writeoffs;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }
@@ -67,7 +75,13 @@ class WriteoffRepositoryImpl implements WriteoffRepository {
       if (data == null) {
         return null;
       }
-      return StockWriteoffModel.from1CDetailJson(data);
+      final writeoff = StockWriteoffModel.from1CDetailJson(data);
+      await DocumentAuthorSupport.cacheDocumentAuthor(
+        documentId: writeoff.id,
+        authorLogin: writeoff.authorLogin,
+        author: writeoff.author,
+      );
+      return writeoff;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

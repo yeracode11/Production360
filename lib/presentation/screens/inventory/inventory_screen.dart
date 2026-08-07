@@ -102,7 +102,7 @@ class InventoryScreen extends StatelessWidget {
                   ),
                   if (state is InventoryLoading)
                     const LinearProgressIndicator(minHeight: 2),
-                  Expanded(child: _buildBody(context, state)),
+                  Expanded(child: _buildBody(context, state, warehouseId)),
                 ],
               );
             },
@@ -112,7 +112,11 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, InventoryState state) {
+  Widget _buildBody(
+    BuildContext context,
+    InventoryState state,
+    String warehouseId,
+  ) {
     if (state is InventoryLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -180,7 +184,11 @@ class InventoryScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80),
         itemCount: documents.length,
         itemBuilder: (context, index) {
-          return InventoryCard(document: documents[index]);
+          return InventoryCard(
+            document: documents[index],
+            onReturnFromDetails: () =>
+                context.read<InventoryCubit>().loadInventories(warehouseId),
+          );
         },
       ),
     );

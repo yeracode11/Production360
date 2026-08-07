@@ -14,10 +14,14 @@ import '../../../domain/entities/order_item.dart';
 import '../../../domain/entities/order_receipt_item.dart';
 import '../../../domain/entities/order_request.dart';
 import '../../../domain/repositories/order_repository.dart';
+import '../../../domain/services/document_print_mapper.dart';
 import '../../bloc/orders/orders_cubit.dart';
 import '../../widgets/accompanying_product_label.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/document_screen_scaffold.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
+import '../../widgets/print_document_button.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   const OrderDetailsScreen({
@@ -256,19 +260,23 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.orderDetailsTitle),
-        bottom: _isLoading || _loadError != null
-            ? null
-            : TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(text: AppStrings.orderDetailsTab),
-                  Tab(text: AppStrings.receiptItems),
-                ],
-              ),
-      ),
+    return DocumentScreenScaffold(
+      title: AppStrings.orderDetailsTitle,
+      actions: [
+        if (!_isLoading && _loadError == null && _order != null)
+          PrintDocumentButton(
+            document: DocumentPrintMapper.fromOrder(_order!),
+          ),
+      ],
+      bottom: _isLoading || _loadError != null
+          ? null
+          : TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: AppStrings.orderDetailsTab),
+                Tab(text: AppStrings.receiptItems),
+              ],
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -705,7 +713,7 @@ class _ReceiptCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 40,
-                      child: TextFormField(
+                      child: OnScreenKeyboardTextField(
                         key: ValueKey('${item.id}-${row.decision.name}'),
                         controller: row.receivedController,
                         keyboardType: const TextInputType.numberWithOptions(

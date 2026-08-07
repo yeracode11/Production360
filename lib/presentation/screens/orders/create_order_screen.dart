@@ -18,7 +18,9 @@ import '../../bloc/orders/orders_cubit.dart';
 import '../../widgets/accompanying_product_label.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/document_author_row.dart';
+import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
 import '../../widgets/order_create_preview_item.dart';
 import 'create_order_preview_screen.dart';
 
@@ -267,14 +269,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   Widget build(BuildContext context) {
     final created = _createdOrderPreview;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          created != null
-              ? AppStrings.orderDetailsTitle
-              : AppStrings.createOrderTitle,
-        ),
-      ),
+    return DocumentScreenScaffold(
+      title: created != null
+          ? AppStrings.orderDetailsTitle
+          : AppStrings.createOrderTitle,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -405,7 +403,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              TextFormField(
+                              OnScreenKeyboardTextField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -583,7 +581,7 @@ class _ProductCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            TextFormField(
+            OnScreenKeyboardTextField(
               controller: row.quantityController,
               decoration: InputDecoration(
                 labelText: AppStrings.itemQuantity,

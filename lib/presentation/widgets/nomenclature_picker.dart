@@ -9,6 +9,7 @@ import '../../core/utils/exception_message.dart';
 import '../../domain/entities/nomenclature_product.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import 'nomenclature_quantity_stepper.dart';
+import 'on_screen_keyboard/on_screen_keyboard_field.dart';
 
 class _BrowseLevel {
   const _BrowseLevel({this.id, this.name = AppStrings.nomenclatureRootGroups});
@@ -30,6 +31,7 @@ class NomenclaturePicker extends StatefulWidget {
     this.onTitleChanged,
     this.batchSize = 30,
     this.allowZeroQuantity = false,
+    this.quantityEmptyOnAdd = false,
   });
 
   final String organizationId;
@@ -37,11 +39,12 @@ class NomenclaturePicker extends StatefulWidget {
   final ValueChanged<NomenclatureProduct> onProductRemoved;
   final bool Function(String productId) isProductAdded;
   final num? Function(String productId)? productQuantity;
-  final void Function(NomenclatureProduct product, num quantity)?
+  final void Function(NomenclatureProduct product, num? quantity)?
       onQuantityChanged;
   final ValueChanged<String>? onTitleChanged;
   final int batchSize;
   final bool allowZeroQuantity;
+  final bool quantityEmptyOnAdd;
 
   @override
   State<NomenclaturePicker> createState() => _NomenclaturePickerState();
@@ -325,8 +328,9 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
+        OnScreenKeyboardTextField(
           controller: _searchController,
+          primaryOnScreenKeyboard: true,
           onChanged: _onSearchChanged,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
@@ -512,6 +516,7 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
             isAdded: widget.isProductAdded(product.id),
             quantity: widget.productQuantity?.call(product.id),
             allowZero: widget.allowZeroQuantity,
+            quantityEmptyOnAdd: widget.quantityEmptyOnAdd,
             onAdd: () => widget.onProductSelected(product),
             onRemove: () => widget.onProductRemoved(product),
             onQuantityChanged: widget.onQuantityChanged == null
@@ -588,6 +593,7 @@ class _NomenclaturePickerState extends State<NomenclaturePicker> {
         isAdded: widget.isProductAdded(product.id),
         quantity: widget.productQuantity?.call(product.id),
         allowZero: widget.allowZeroQuantity,
+        quantityEmptyOnAdd: widget.quantityEmptyOnAdd,
         onAdd: () => widget.onProductSelected(product),
         onRemove: () => widget.onProductRemoved(product),
         onQuantityChanged: widget.onQuantityChanged == null
@@ -776,6 +782,7 @@ class _ProductTile extends StatelessWidget {
     this.quantity,
     this.onQuantityChanged,
     this.allowZero = false,
+    this.quantityEmptyOnAdd = false,
   });
 
   final NomenclatureProduct product;
@@ -783,11 +790,11 @@ class _ProductTile extends StatelessWidget {
   final VoidCallback onRemove;
   final bool isAdded;
   final num? quantity;
-  final ValueChanged<num>? onQuantityChanged;
+  final ValueChanged<num?>? onQuantityChanged;
   final bool allowZero;
+  final bool quantityEmptyOnAdd;
 
-  bool get _showQuantityStepper =>
-      isAdded && quantity != null && onQuantityChanged != null;
+  bool get _showQuantityStepper => isAdded && onQuantityChanged != null;
 
   @override
   Widget build(BuildContext context) {
@@ -841,8 +848,9 @@ class _ProductTile extends StatelessWidget {
               const SizedBox(width: 8),
               if (_showQuantityStepper)
                 NomenclatureQuantityStepper(
-                  quantity: quantity!,
+                  quantity: quantity,
                   allowZero: allowZero,
+                  allowEmpty: quantityEmptyOnAdd,
                   onChanged: onQuantityChanged!,
                   onRemove: onRemove,
                 )

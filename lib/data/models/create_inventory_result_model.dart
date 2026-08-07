@@ -1,3 +1,4 @@
+import '../../core/utils/one_c_bool.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/create_inventory_result.dart';
 
@@ -17,7 +18,7 @@ class CreateInventoryResultModel extends CreateInventoryResult {
       number: json['Номер'] as String,
       date: parseOneCDate(dateRaw),
       dateDisplay: dateRaw,
-      isPosted: json['Проведен'] as bool? ?? false,
+      isPosted: parseOneCBool(json['Проведен']),
     );
   }
 }

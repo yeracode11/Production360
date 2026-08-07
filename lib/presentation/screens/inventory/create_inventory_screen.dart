@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/storage/inventory_completed_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/utils/quantity_input.dart';
@@ -18,8 +19,10 @@ import '../../bloc/inventory/inventory_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/document_author_row.dart';
+import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
-import 'inventory_details_screen.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
+import 'inventory_reconciliation_screen.dart';
 
 class CreateInventoryScreen extends StatefulWidget {
   const CreateInventoryScreen({super.key, required this.warehouse});
@@ -38,7 +41,6 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   bool _isLoadingPredata = true;
   String? _predataError;
   bool _isSaving = false;
-  String? _createdDocumentId;
 
   @override
   void initState() {
@@ -80,19 +82,10 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   }
 
   void _addProduct(NomenclatureProduct product) {
-    final existing = _lines.where((l) => l.product.id == product.id).toList();
-    if (existing.isNotEmpty) {
-      final row = existing.first;
-      final current = parseAmount(row.quantityController.text) ?? 0;
-      row.quantityController.text = formatQuantityForInput(current + 1);
-      setState(() {});
-    } else {
-      setState(() {
-        final row = _InventoryLineRow(product: product);
-        row.quantityController.text = '1';
-        _lines.add(row);
-      });
-    }
+    if (_lines.any((line) => line.product.id == product.id)) return;
+    setState(() {
+      _lines.add(_InventoryLineRow(product: product));
+    });
   }
 
   void _removeLine(_InventoryLineRow row) {
@@ -116,19 +109,22 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   num? _productQuantity(String productId) {
     for (final row in _lines) {
       if (row.product.id == productId) {
-        return parseAmount(row.quantityController.text) ?? 0;
+        final text = row.quantityController.text.trim();
+        if (text.isEmpty) return null;
+        return parseAmount(text);
       }
     }
     return null;
   }
 
-  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
-    if (quantity < 0) {
+  void _changeProductQuantity(NomenclatureProduct product, num? quantity) {
+    if (quantity != null && quantity < 0) {
       _removeProduct(product);
       return;
     }
 
-    final text = formatQuantityForInput(quantity);
+    final text =
+        quantity == null ? '' : formatQuantityForInput(quantity);
     final existing =
         _lines.where((line) => line.product.id == product.id).toList();
     if (existing.isNotEmpty) {
@@ -149,8 +145,13 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
     final items = <CreateInventoryItemRequest>[];
     for (final row in _lines) {
-      final amount = parseAmount(row.quantityController.text);
-      if (amount == null || amount < 0) continue;
+      final amount = parseAmount(row.quantityController.text.trim());
+      if (amount == null || amount < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.itemQuantityRequired)),
+        );
+        return;
+      }
       items.add(
         CreateInventoryItemRequest(
           productId: row.product.id,
@@ -187,6 +188,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
       if (!mounted) return;
       FocusScope.of(context).unfocus();
+      await sl<InventoryCompletedStorage>().markCompleted(result.id);
       context.read<InventoryCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -195,7 +197,14 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
           ),
         ),
       );
-      setState(() => _createdDocumentId = result.id);
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => InventoryReconciliationScreen(
+            inventoryId: result.id,
+            openedAfterCreate: true,
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -214,18 +223,16 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final created = _createdDocumentId;
-
     if (_isLoadingPredata) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
-        body: const Center(child: CircularProgressIndicator()),
+      return const DocumentScreenScaffold(
+        title: AppStrings.createInventoryTitle,
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_predataError != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppStrings.createInventoryTitle)),
+      return DocumentScreenScaffold(
+        title: AppStrings.createInventoryTitle,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -249,20 +256,9 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          created != null
-              ? AppStrings.inventoryDetailsTitle
-              : AppStrings.createInventoryTitle,
-        ),
-      ),
-      body: created != null
-          ? InventoryDetailsScreen(
-              inventoryId: created,
-              embedded: true,
-            )
-          : _buildForm(),
+    return DocumentScreenScaffold(
+      title: AppStrings.createInventoryTitle,
+      body: _buildForm(),
     );
   }
 
@@ -308,7 +304,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
                               child: Text(widget.warehouse.name),
                             ),
                             const SizedBox(height: 12),
-                            TextFormField(
+                            OnScreenKeyboardTextField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -338,6 +334,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
                       productQuantity: _productQuantity,
                       onQuantityChanged: _changeProductQuantity,
                       allowZeroQuantity: true,
+                      quantityEmptyOnAdd: true,
                     ),
                     const SizedBox(height: 12),
                     if (_lines.isEmpty)
@@ -448,7 +445,7 @@ class _InventoryLineCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            TextFormField(
+            OnScreenKeyboardTextField(
               controller: row.quantityController,
               decoration: InputDecoration(
                 labelText: AppStrings.itemQuantity,

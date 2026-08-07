@@ -5,12 +5,18 @@ import '../../core/theme/app_colors.dart';
 import '../../domain/entities/order_request.dart';
 import '../screens/orders/order_details_screen.dart';
 import 'accompanying_product_label.dart';
+import 'document_author_row.dart';
 
 /// Card displaying order summary in list views.
 class OrderCard extends StatelessWidget {
-  const OrderCard({super.key, required this.order});
+  const OrderCard({
+    super.key,
+    required this.order,
+    this.onReturnFromDetails,
+  });
 
   final OrderRequest order;
+  final VoidCallback? onReturnFromDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +31,8 @@ class OrderCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => OrderDetailsScreen(
                 orderId: order.id,
@@ -34,6 +40,7 @@ class OrderCard extends StatelessWidget {
               ),
             ),
           );
+          onReturnFromDetails?.call();
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -51,13 +58,18 @@ class OrderCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _StatusChip(statusLabel: order.displayStatus),
                 ],
               ),
               const SizedBox(height: 12),
               _InfoRow(
                 label: AppStrings.deliveryDate,
                 value: createdDateLabel,
+              ),
+              const SizedBox(height: 4),
+              DocumentCardAuthorRow(
+                documentId: order.id,
+                authorLogin: order.authorLogin,
+                author: order.author,
               ),
               if (order.orderType != null) ...[
                 const SizedBox(height: 4),
@@ -120,30 +132,6 @@ String _formatDateTime(DateTime date, {required bool withSeconds}) {
       : '${date.hour.toString().padLeft(2, '0')}:'
           '${date.minute.toString().padLeft(2, '0')}';
   return '$datePart $timePart';
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.statusLabel});
-
-  final String statusLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.mintSoft,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        statusLabel,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.turquoiseDark,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
 }
 
 class _InfoRow extends StatelessWidget {

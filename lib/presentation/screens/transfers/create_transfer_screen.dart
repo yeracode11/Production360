@@ -17,7 +17,9 @@ import '../../bloc/transfers/transfers_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/document_author_row.dart';
+import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
 import 'select_recipient_warehouse_screen.dart';
 import 'transfer_details_screen.dart';
 
@@ -125,8 +127,8 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
     return null;
   }
 
-  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
-    if (quantity <= 0) {
+  void _changeProductQuantity(NomenclatureProduct product, num? quantity) {
+    if (quantity == null || quantity <= 0) {
       _removeProduct(product);
       return;
     }
@@ -227,14 +229,10 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   Widget build(BuildContext context) {
     final created = _createdDocumentId;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          created != null
-              ? AppStrings.transferDetailsTitle
-              : AppStrings.createTransferTitle,
-        ),
-      ),
+    return DocumentScreenScaffold(
+      title: created != null
+          ? AppStrings.transferDetailsTitle
+          : AppStrings.createTransferTitle,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -321,7 +319,7 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
                             else
                               _buildRecipientSelector(predata),
                             const SizedBox(height: 12),
-                            TextFormField(
+                            OnScreenKeyboardTextField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -506,7 +504,7 @@ class _TransferLineCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            TextFormField(
+            OnScreenKeyboardTextField(
               controller: row.quantityController,
               decoration: InputDecoration(
                 labelText: AppStrings.itemQuantity,

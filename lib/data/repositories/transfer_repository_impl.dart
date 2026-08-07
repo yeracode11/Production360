@@ -41,13 +41,21 @@ class TransferRepositoryImpl implements TransferRepository {
       _throwIfOneCError(json, 'Ошибка загрузки перемещений');
 
       final docs = json['data'] as List<dynamic>? ?? [];
-      return docs
+      final transfers = docs
           .map(
             (e) => InternalTransferModel.from1CListJson(
               e as Map<String, dynamic>,
             ),
           )
           .toList();
+      for (final transfer in transfers) {
+        await DocumentAuthorSupport.cacheDocumentAuthor(
+          documentId: transfer.id,
+          authorLogin: transfer.authorLogin,
+          author: transfer.author,
+        );
+      }
+      return transfers;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }
@@ -67,7 +75,13 @@ class TransferRepositoryImpl implements TransferRepository {
       if (data == null) {
         return null;
       }
-      return InternalTransferModel.from1CDetailJson(data);
+      final transfer = InternalTransferModel.from1CDetailJson(data);
+      await DocumentAuthorSupport.cacheDocumentAuthor(
+        documentId: transfer.id,
+        authorLogin: transfer.authorLogin,
+        author: transfer.author,
+      );
+      return transfer;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

@@ -4,11 +4,17 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/inventory_document.dart';
 import '../screens/inventory/inventory_details_screen.dart';
+import 'document_author_row.dart';
 
 class InventoryCard extends StatelessWidget {
-  const InventoryCard({super.key, required this.document});
+  const InventoryCard({
+    super.key,
+    required this.document,
+    this.onReturnFromDetails,
+  });
 
   final InventoryDocument document;
+  final VoidCallback? onReturnFromDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -20,13 +26,14 @@ class InventoryCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) =>
                   InventoryDetailsScreen(inventoryId: document.id),
             ),
           );
+          onReturnFromDetails?.call();
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -48,11 +55,16 @@ class InventoryCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _PostedChip(isPosted: document.isPosted),
                 ],
               ),
               const SizedBox(height: 12),
               _InfoRow(label: AppStrings.date, value: dateLabel),
+              const SizedBox(height: 4),
+              DocumentCardAuthorRow(
+                documentId: document.id,
+                authorLogin: document.authorLogin,
+                author: document.author,
+              ),
               const SizedBox(height: 4),
               _InfoRow(
                 label: AppStrings.warehouse,
@@ -65,31 +77,6 @@ class InventoryCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PostedChip extends StatelessWidget {
-  const _PostedChip({required this.isPosted});
-
-  final bool isPosted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isPosted ? AppColors.mintSoft : AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isPosted ? AppStrings.inventoryPosted : AppStrings.inventoryNotPosted,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color:
-                  isPosted ? AppColors.turquoiseDark : AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
       ),
     );
   }

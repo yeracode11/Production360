@@ -9,10 +9,10 @@ class CreateProductionRequest extends Equatable {
     this.comment,
   });
 
-  /// Склад продукций (`skladID`) — текущая точка с главной страницы.
+  /// Склад продукции (`skladProdID`).
   final String productsWarehouseId;
 
-  /// Склад сырья/заготовки (`skladSyriaID`).
+  /// Склад сырья (`skladSyriaID`).
   final String rawMaterialsWarehouseId;
   final String? comment;
   final List<CreateProductionItemRequest> items;

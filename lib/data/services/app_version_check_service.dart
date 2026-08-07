@@ -77,6 +77,28 @@ class AppVersionCheckService {
       ]);
     }
 
+    if (Platform.isWindows) {
+      return _readFirstNonEmpty(data, [
+        'min_version_windows',
+        'minVersionWindows',
+        'minimum_version_windows',
+        'min_version',
+        'minVersion',
+        'minimum_version',
+      ]);
+    }
+
+    if (Platform.isMacOS) {
+      return _readFirstNonEmpty(data, [
+        'min_version_macos',
+        'minVersionMacos',
+        'minimum_version_macos',
+        'min_version',
+        'minVersion',
+        'minimum_version',
+      ]);
+    }
+
     return _readFirstNonEmpty(data, [
       'min_version',
       'minVersion',

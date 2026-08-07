@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/transfer_predata.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 
 /// Полноэкранный выбор склада получателя с поиском.
 class SelectRecipientWarehouseScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _SelectRecipientWarehouseScreenState
     final results = _filtered;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBarWithKeyboard(title: widget.title),
       body: Column(
         children: [
           Padding(

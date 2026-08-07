@@ -1,4 +1,5 @@
 import '../../core/utils/one_c_author.dart';
+import '../../core/utils/one_c_bool.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/inventory_document.dart';
 
@@ -27,7 +28,7 @@ class InventoryDocumentModel extends InventoryDocument {
       number: json['Номер'] as String,
       date: parseOneCDate(dateRaw),
       dateDisplay: dateRaw,
-      isPosted: json['Проведен'] as bool? ?? false,
+      isPosted: parseOneCBool(json['Проведен']),
       organizationId: json['ОрганизацияСсылка'] as String,
       organizationName: json['ОрганизацияНаименование'] as String,
       warehouseId: json['СкладСсылка'] as String,
@@ -48,7 +49,7 @@ class InventoryDocumentModel extends InventoryDocument {
       number: json['Номер'] as String,
       date: dateRaw != null ? parseOneCDate(dateRaw) : DateTime.now(),
       dateDisplay: dateRaw,
-      isPosted: json['Проведен'] as bool? ?? false,
+      isPosted: parseOneCBool(json['Проведен']),
       organizationId: json['ОрганизацияСсылка'] as String? ?? '',
       organizationName: json['ОрганизацияНаименование'] as String? ?? '',
       warehouseId: json['СкладСсылка'] as String? ?? '',
@@ -78,6 +79,7 @@ class InventoryDocumentItemModel extends InventoryDocumentItem {
     required super.productId,
     required super.name,
     required super.quantity,
+    super.accountingQuantity,
     super.code,
     super.unit,
   });
@@ -87,6 +89,7 @@ class InventoryDocumentItemModel extends InventoryDocumentItem {
       productId: json['НоменклатураСсылка'] as String,
       name: json['НоменклатураНаименование'] as String,
       quantity: (json['Количество'] as num).toDouble(),
+      accountingQuantity: (json['КоличествоУчет'] as num?)?.toDouble(),
       code: json['НоменклатураКод'] as String?,
       unit: json['ЕдиницаИзмерения'] as String?,
     );

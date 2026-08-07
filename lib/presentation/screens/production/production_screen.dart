@@ -102,7 +102,7 @@ class ProductionScreen extends StatelessWidget {
                   ),
                   if (state is ProductionLoading)
                     const LinearProgressIndicator(minHeight: 2),
-                  Expanded(child: _buildBody(context, state)),
+                  Expanded(child: _buildBody(context, state, warehouseId)),
                 ],
               );
             },
@@ -112,7 +112,11 @@ class ProductionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, ProductionState state) {
+  Widget _buildBody(
+    BuildContext context,
+    ProductionState state,
+    String warehouseId,
+  ) {
     if (state is ProductionLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -180,7 +184,11 @@ class ProductionScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80),
         itemCount: documents.length,
         itemBuilder: (context, index) {
-          return ProductionCard(document: documents[index]);
+          return ProductionCard(
+            document: documents[index],
+            onReturnFromDetails: () =>
+                context.read<ProductionCubit>().loadProductions(warehouseId),
+          );
         },
       ),
     );

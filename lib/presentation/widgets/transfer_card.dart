@@ -4,11 +4,17 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/internal_transfer.dart';
 import '../screens/transfers/transfer_details_screen.dart';
+import 'document_author_row.dart';
 
 class TransferCard extends StatelessWidget {
-  const TransferCard({super.key, required this.transfer});
+  const TransferCard({
+    super.key,
+    required this.transfer,
+    this.onReturnFromDetails,
+  });
 
   final InternalTransfer transfer;
+  final VoidCallback? onReturnFromDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +26,13 @@ class TransferCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => TransferDetailsScreen(transferId: transfer.id),
             ),
           );
+          onReturnFromDetails?.call();
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -47,11 +54,16 @@ class TransferCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _PostedChip(isPosted: transfer.isPosted),
                 ],
               ),
               const SizedBox(height: 12),
               _InfoRow(label: AppStrings.date, value: dateLabel),
+              const SizedBox(height: 4),
+              DocumentCardAuthorRow(
+                documentId: transfer.id,
+                authorLogin: transfer.authorLogin,
+                author: transfer.author,
+              ),
               const SizedBox(height: 4),
               _InfoRow(
                 label: AppStrings.warehouseSender,
@@ -69,30 +81,6 @@ class TransferCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PostedChip extends StatelessWidget {
-  const _PostedChip({required this.isPosted});
-
-  final bool isPosted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isPosted ? AppColors.mintSoft : AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isPosted ? AppStrings.transferPosted : AppStrings.transferNotPosted,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isPosted ? AppColors.turquoiseDark : AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
       ),
     );
   }

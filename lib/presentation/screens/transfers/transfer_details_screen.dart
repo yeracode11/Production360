@@ -8,6 +8,9 @@ import '../../../core/utils/order_item_display.dart';
 import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/internal_transfer.dart';
 import '../../../domain/repositories/transfer_repository.dart';
+import '../../../domain/services/document_print_mapper.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/print_document_button.dart';
 
 class TransferDetailsScreen extends StatefulWidget {
   const TransferDetailsScreen({
@@ -78,7 +81,15 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.transferDetailsTitle)),
+      appBar: AppBarWithKeyboard(
+        title: AppStrings.transferDetailsTitle,
+        actions: [
+          if (!_isLoading && _loadError == null && _transfer != null)
+            PrintDocumentButton(
+              document: DocumentPrintMapper.fromTransfer(_transfer!),
+            ),
+        ],
+      ),
       body: body,
     );
   }

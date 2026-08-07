@@ -99,7 +99,7 @@ class TransfersScreen extends StatelessWidget {
                   ),
                   if (state is TransfersLoading)
                     const LinearProgressIndicator(minHeight: 2),
-                  Expanded(child: _buildBody(context, state)),
+                  Expanded(child: _buildBody(context, state, warehouseId)),
                 ],
               );
             },
@@ -109,7 +109,11 @@ class TransfersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, TransfersState state) {
+  Widget _buildBody(
+    BuildContext context,
+    TransfersState state,
+    String warehouseId,
+  ) {
     if (state is TransfersLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -177,7 +181,11 @@ class TransfersScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80),
         itemCount: transfers.length,
         itemBuilder: (context, index) {
-          return TransferCard(transfer: transfers[index]);
+          return TransferCard(
+            transfer: transfers[index],
+            onReturnFromDetails: () =>
+                context.read<TransfersCubit>().loadTransfers(warehouseId),
+          );
         },
       ),
     );

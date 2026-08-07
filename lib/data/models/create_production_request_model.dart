@@ -2,7 +2,7 @@ import '../../domain/entities/create_production_request.dart';
 
 extension CreateProductionRequestModel on CreateProductionRequest {
   Map<String, dynamic> to1CJson() => {
-        'skladID': productsWarehouseId,
+        'skladProdID': productsWarehouseId,
         'skladSyriaID': rawMaterialsWarehouseId,
         'comment': comment ?? '',
         'tovary': items.map((e) => e.to1CJson()).toList(),

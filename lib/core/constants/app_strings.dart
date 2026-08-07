@@ -140,6 +140,15 @@ abstract final class AppStrings {
   static const String forceUpdateMessage =
       'Вышло критическое обновление приложения. Для продолжения работы необходимо обновиться.';
   static const String forceUpdateButton = 'Обновить';
+  static const String forceUpdateDesktopMessage =
+      'Вышло критическое обновление. Установите новую версию приложения на компьютер.';
+  static const String forceUpdateDesktopHint =
+      'Обратитесь к администратору для установки новой версии.';
+
+  // On-screen keyboard (desktop)
+  static const String onScreenKeyboardShow = 'Экранная клавиатура';
+  static const String onScreenKeyboardHide = 'Скрыть клавиатуру';
+  static const String onScreenKeyboardSpace = 'Пробел';
 
   // Placeholder screens
   static const String transfersPlaceholder = 'Перемещение товаров';
@@ -156,13 +165,28 @@ abstract final class AppStrings {
   static const String inventoryCreated = 'Инвентаризация создана';
   static const String confirmCreateInventory =
       'Вы уверены, что хотите создать инвентаризацию?';
-  static const String inventoryPosted = 'Проведён';
-  static const String inventoryNotPosted = 'Не проведён';
   static const String inventoryItems = 'Товары';
   static const String inventoryNotFound = 'Документ инвентаризации не найден';
   static const String noInventoryItems = 'Нет позиций в документе';
   static const String inventorySearchPrompt =
       'Найдите товар по названию, коду или артикулу';
+  static const String completeInventory = 'Завершить инвентаризацию';
+  static const String confirmCompleteInventory =
+      'Завершить инвентаризацию с указанными количествами?';
+  static const String inventoryCompleted = 'Инвентаризация завершена';
+  static const String inventoryReconciliationTitle = 'Сверка инвентаризации';
+  static const String inventoryReconciliation = 'Сверка';
+  static const String inventoryReconciliationAfterCreateHint =
+      'Документ создан. Возврат к списку…';
+  static const String inventoryReconciliationMatchHint =
+      'Все позиции совпадают с учётным количеством.';
+  static String inventoryReconciliationMismatchHint(int count) =>
+      'Расхождений: $count';
+  static const String inventoryMismatchBadge = 'Расхождение';
+  static const String accountingQuantity = 'По учёту';
+  static const String actualQuantity = 'Факт';
+  static const String quantityDifference = 'Разница';
+  static const String confirm = 'Подтвердить';
 
   // Production (производство)
   static const String production = 'Производство';
@@ -175,8 +199,6 @@ abstract final class AppStrings {
   static const String productionCreated = 'Производство создано';
   static const String confirmCreateProduction =
       'Вы уверены, что хотите создать производство?';
-  static const String productionPosted = 'Проведён';
-  static const String productionNotPosted = 'Не проведён';
   static const String productionItems = 'Товары';
   static const String productionNotFound = 'Документ производства не найден';
   static const String noProductionItems = 'Нет позиций в документе';
@@ -184,6 +206,7 @@ abstract final class AppStrings {
       'Найдите товар по названию, коду или артикулу';
   static const String productionWarehouse = 'Склад продукции';
   static const String rawMaterialsWarehouse = 'Склад сырья';
+  static const String selectProductionWarehouse = 'Выберите склад продукции';
   static const String selectRawMaterialsWarehouse = 'Выберите склад сырья';
   static const String productionStructuralUnitError =
       '1С не смогла провести производство. Проверьте совместимость склада сырья с выбранной торговой точкой и настройки номенклатуры в 1С.';
@@ -204,8 +227,6 @@ abstract final class AppStrings {
   static const String confirmCreateTransfer =
       'Вы уверены, что хотите создать перемещение?';
   static const String recipientWarehouse = 'Склад получатель';
-  static const String transferPosted = 'Проведён';
-  static const String transferNotPosted = 'Не проведён';
   static const String selectRecipientWarehouse = 'Выберите склад получатель';
   static const String noRecipientWarehouses = 'Нет доступных складов получателей';
   static const String searchWarehouseHint = 'Поиск склада';
@@ -239,8 +260,6 @@ abstract final class AppStrings {
   static const String writeoffCreated = 'Списание создано';
   static const String confirmCreateWriteoff =
       'Вы уверены, что хотите создать списание?';
-  static const String writeoffPosted = 'Проведён';
-  static const String writeoffNotPosted = 'Не проведён';
   static const String writeoffItems = 'Товары';
   static const String writeoffNotFound = 'Документ списания не найден';
   static const String noWriteoffItems = 'Нет позиций в документе';
@@ -259,4 +278,66 @@ abstract final class AppStrings {
   static const String productAdded = 'Добавлено';
   static const String tapToAdd = 'Добавить';
   static const String clearSearch = 'Очистить';
+
+  // Printer
+  static const String printerSettings = 'Принтер';
+  static const String settingsAboutTitle = 'О приложении';
+  static const String printerSettingsHint =
+      'Ручное подключение принтера для текущего склада';
+  static const String printerSettingsManualDescription =
+      'Укажите IP-адрес и порт сетевого чекового принтера. '
+      'По умолчанию используется порт 9100 (RAW TCP). '
+      'При печати документа можно выбрать принтер из списка 1С.';
+  static const String settingsPrintHint =
+      'Список принтеров — при печати, ручной IP — в настройках.';
+  static const String printerSelectionTitle = 'Выбор принтера';
+  static const String printerSettingsDescription =
+      'Выберите принтер из списка 1С или укажите IP вручную, '
+      'если для склада принтеры не заданы.';
+  static const String printerWarehouseTitle = 'Склад';
+  static const String printerListTitle = 'Принтеры склада';
+  static const String printerListEmpty =
+      'Для этого склада принтеры не заданы в 1С. Введите IP вручную.';
+  static const String printerManualEntry = 'Ручной ввод IP';
+  static const String printerSelectRequired = 'Выберите принтер из списка';
+  static const String printerLoadError = 'Не удалось загрузить список принтеров';
+  static const String printerHost = 'IP-адрес принтера';
+  static const String printerHostHint = '192.168.1.100';
+  static const String printerHostRequired = 'Введите IP-адрес принтера';
+  static const String printerPort = 'Порт';
+  static const String printerPortInvalid = 'Некорректный порт (1–65535)';
+  static const String printerSettingsSaved = 'Настройки принтера сохранены';
+  static const String printDocument = 'Печать';
+  static const String printSuccess = 'Документ отправлен на печать';
+  static const String printNotConfiguredTitle = 'Принтер не настроен';
+  static const String printOpenSettings = 'Настроить';
+  static const String printTestAction = 'Тестовая печать';
+  static const String printTestSuccess = 'Тестовый чек отправлен на печать';
+  static const String printTestTitle = 'Тест печати';
+  static const String printTestSubtitle = 'Production360';
+  static const String printTestFooter =
+      'Если этот чек напечатался корректно, принтер настроен.';
+  static const String printPaperWidth = 'Ширина бумаги';
+  static const String printPaperWidthValue = '80 мм';
+  static const String printItemsSection = 'ПОЗИЦИИ';
+  static const String printAppName = 'Production360';
+  static const String printOrderTitle = 'ЗАЯВКА';
+  static const String printTransferTitle = 'ПЕРЕМЕЩЕНИЕ';
+  static const String printInventoryTitle = 'ИНВЕНТАРИЗАЦИЯ';
+  static const String printWriteoffTitle = 'СПИСАНИЕ';
+  static const String printProductionTitle = 'ПРОИЗВОДСТВО';
+  static const String printerTestConnection = 'Проверить подключение';
+  static const String printerConnectionOk =
+      'Соединение с принтером установлено';
+  static const String printerLogTitle = 'Журнал печати';
+  static const String printerLogEmpty = 'Записей пока нет';
+  static const String printerLogCopy = 'Копировать';
+  static const String printerLogCopied = 'Журнал скопирован';
+  static const String printerShowLog = 'Подробности';
+  static const String printerLogHint =
+      'При ошибках откройте журнал — там шаги подключения и код ошибки';
+  static const String printerEncodingCp1251Hint =
+      'Кодировка RK1048 (KZ-1048): русский, казахский и латиница по таблице принтера.';
+  static const String printKazakhSampleLabel = 'Казахский';
+  static const String printKazakhSampleText = 'Қазақша: Ұұ Әә Ғғ Ққ Ңң Өө Үү Іі';
 }

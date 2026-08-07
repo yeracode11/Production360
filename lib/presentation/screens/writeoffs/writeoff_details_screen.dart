@@ -8,6 +8,9 @@ import '../../../core/utils/order_item_display.dart';
 import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/stock_writeoff.dart';
 import '../../../domain/repositories/writeoff_repository.dart';
+import '../../../domain/services/document_print_mapper.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/print_document_button.dart';
 
 class WriteoffDetailsScreen extends StatefulWidget {
   const WriteoffDetailsScreen({
@@ -78,7 +81,15 @@ class _WriteoffDetailsScreenState extends State<WriteoffDetailsScreen> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.writeoffDetailsTitle)),
+      appBar: AppBarWithKeyboard(
+        title: AppStrings.writeoffDetailsTitle,
+        actions: [
+          if (!_isLoading && _loadError == null && _writeoff != null)
+            PrintDocumentButton(
+              document: DocumentPrintMapper.fromWriteoff(_writeoff!),
+            ),
+        ],
+      ),
       body: body,
     );
   }

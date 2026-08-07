@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/nomenclature_product.dart';
+import 'app_bar_with_keyboard.dart';
 import 'nomenclature_picker.dart';
 
 /// Полноэкранный выбор номенклатуры: группы → товары + глобальный поиск.
@@ -16,6 +17,7 @@ class SelectNomenclatureScreen extends StatefulWidget {
     this.productQuantity,
     this.onQuantityChanged,
     this.allowZeroQuantity = false,
+    this.quantityEmptyOnAdd = false,
   });
 
   final String organizationId;
@@ -23,9 +25,10 @@ class SelectNomenclatureScreen extends StatefulWidget {
   final ValueChanged<NomenclatureProduct> onProductRemoved;
   final bool Function(String productId) isProductAdded;
   final num? Function(String productId)? productQuantity;
-  final void Function(NomenclatureProduct product, num quantity)?
+  final void Function(NomenclatureProduct product, num? quantity)?
       onQuantityChanged;
   final bool allowZeroQuantity;
+  final bool quantityEmptyOnAdd;
 
   @override
   State<SelectNomenclatureScreen> createState() =>
@@ -36,7 +39,7 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
   String _title = AppStrings.nomenclatureRootGroups;
   final Set<String> _addedDuringSession = {};
   final Set<String> _removedDuringSession = {};
-  final Map<String, num> _quantitiesDuringSession = {};
+  final Map<String, num?> _quantitiesDuringSession = {};
 
   bool _isProductAdded(String productId) {
     if (_removedDuringSession.contains(productId)) return false;
@@ -54,6 +57,16 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
 
   void _handleProductSelected(NomenclatureProduct product) {
     if (widget.onQuantityChanged != null) {
+      if (widget.quantityEmptyOnAdd) {
+        if (_isProductAdded(product.id)) return;
+        widget.onProductSelected(product);
+        setState(() {
+          _removedDuringSession.remove(product.id);
+          _addedDuringSession.add(product.id);
+          _quantitiesDuringSession.remove(product.id);
+        });
+        return;
+      }
       final current = _resolveQuantity(product.id) ?? 0;
       _handleQuantityChanged(product, current + 1);
       return;
@@ -75,7 +88,21 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
     });
   }
 
-  void _handleQuantityChanged(NomenclatureProduct product, num quantity) {
+  void _handleQuantityChanged(NomenclatureProduct product, num? quantity) {
+    if (quantity == null) {
+      if (!widget.quantityEmptyOnAdd) {
+        _handleProductRemoved(product);
+        return;
+      }
+      widget.onQuantityChanged?.call(product, null);
+      setState(() {
+        _removedDuringSession.remove(product.id);
+        _addedDuringSession.add(product.id);
+        _quantitiesDuringSession[product.id] = null;
+      });
+      return;
+    }
+
     if (quantity < 0 || (!widget.allowZeroQuantity && quantity <= 0)) {
       _handleProductRemoved(product);
       return;
@@ -93,8 +120,8 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
+      appBar: AppBarWithKeyboard(
+        titleWidget: Text(_title),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -120,6 +147,7 @@ class _SelectNomenclatureScreenState extends State<SelectNomenclatureScreen> {
                   ? null
                   : _handleQuantityChanged,
               allowZeroQuantity: widget.allowZeroQuantity,
+              quantityEmptyOnAdd: widget.quantityEmptyOnAdd,
             ),
           ),
         ),
@@ -139,6 +167,7 @@ class AddNomenclatureButton extends StatelessWidget {
     this.productQuantity,
     this.onQuantityChanged,
     this.allowZeroQuantity = false,
+    this.quantityEmptyOnAdd = false,
   });
 
   final String organizationId;
@@ -146,9 +175,10 @@ class AddNomenclatureButton extends StatelessWidget {
   final ValueChanged<NomenclatureProduct> onProductRemoved;
   final bool Function(String productId) isProductAdded;
   final num? Function(String productId)? productQuantity;
-  final void Function(NomenclatureProduct product, num quantity)?
+  final void Function(NomenclatureProduct product, num? quantity)?
       onQuantityChanged;
   final bool allowZeroQuantity;
+  final bool quantityEmptyOnAdd;
 
   Future<void> _openPicker(BuildContext context) async {
     await Navigator.of(context).push<void>(
@@ -161,6 +191,7 @@ class AddNomenclatureButton extends StatelessWidget {
           productQuantity: productQuantity,
           onQuantityChanged: onQuantityChanged,
           allowZeroQuantity: allowZeroQuantity,
+          quantityEmptyOnAdd: quantityEmptyOnAdd,
         ),
       ),
     );

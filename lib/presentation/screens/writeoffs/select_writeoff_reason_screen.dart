@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/writeoff_predata.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 
 /// Полноэкранный выбор причины списания с поиском.
 class SelectWriteoffReasonScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _SelectWriteoffReasonScreenState
     final results = _filtered;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.writeoffReason)),
+      appBar: AppBarWithKeyboard(title: AppStrings.writeoffReason),
       body: Column(
         children: [
           Padding(

@@ -8,6 +8,9 @@ import '../../../core/utils/order_item_display.dart';
 import '../../widgets/document_author_row.dart';
 import '../../../domain/entities/production_document.dart';
 import '../../../domain/repositories/production_repository.dart';
+import '../../../domain/services/document_print_mapper.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/print_document_button.dart';
 
 class ProductionDetailsScreen extends StatefulWidget {
   const ProductionDetailsScreen({
@@ -79,7 +82,15 @@ class _ProductionDetailsScreenState extends State<ProductionDetailsScreen> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.productionDetailsTitle)),
+      appBar: AppBarWithKeyboard(
+        title: AppStrings.productionDetailsTitle,
+        actions: [
+          if (!_isLoading && _loadError == null && _document != null)
+            PrintDocumentButton(
+              document: DocumentPrintMapper.fromProduction(_document!),
+            ),
+        ],
+      ),
       body: body,
     );
   }

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../core/utils/inventory_quantity.dart';
+
 /// Документ инвентаризации из 1С.
 class InventoryDocument extends Equatable {
   const InventoryDocument({
@@ -55,16 +57,26 @@ class InventoryDocumentItem extends Equatable {
     required this.productId,
     required this.name,
     required this.quantity,
+    this.accountingQuantity,
     this.code,
     this.unit,
   });
 
   final String productId;
   final String name;
+  /// Фактическое количество (`Количество`).
   final double quantity;
+  /// Учётное количество из 1С (`КоличествоУчет`).
+  final double? accountingQuantity;
   final String? code;
   final String? unit;
 
+  bool get hasAccountingQuantity => accountingQuantity != null;
+
+  bool get quantityMismatch =>
+      InventoryQuantity.mismatches(quantity, accountingQuantity);
+
   @override
-  List<Object?> get props => [productId, name, quantity, code, unit];
+  List<Object?> get props =>
+      [productId, name, quantity, accountingQuantity, code, unit];
 }

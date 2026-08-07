@@ -122,10 +122,17 @@ class ResolvedDocumentAuthorRow extends StatelessWidget {
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        if (state is AuthAuthenticated) {
+        final login = DocumentAuthorSupport.resolveDisplayLogin(
+          documentId: documentId,
+          authorLogin: authorLogin,
+          author: author,
+          currentUserLogin:
+              state is AuthAuthenticated ? state.user.username : null,
+        );
+        if (login != null && login.isNotEmpty) {
           return DocumentAuthorRow(
-            login: state.user.username,
-            highlightCurrentUser: true,
+            login: login,
+            highlightCurrentUser: state is AuthAuthenticated,
           );
         }
         return const DocumentAuthorRow();
@@ -167,6 +174,53 @@ class DocumentAuthorPreviewLine extends StatelessWidget {
           );
         }
         return const DocumentAuthorRow();
+      },
+    );
+  }
+}
+
+/// Строка «Автор» в карточке документа в списке.
+class DocumentCardAuthorRow extends StatelessWidget {
+  const DocumentCardAuthorRow({
+    super.key,
+    required this.documentId,
+    this.authorLogin,
+    this.author,
+  });
+
+  final String documentId;
+  final String? authorLogin;
+  final String? author;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final login = DocumentAuthorSupport.resolveDisplayLogin(
+          documentId: documentId,
+          authorLogin: authorLogin,
+          author: author,
+          currentUserLogin:
+              state is AuthAuthenticated ? state.user.username : null,
+        );
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${AppStrings.author}: ',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.deepBrownLight,
+                  ),
+            ),
+            Expanded(
+              child: Text(
+                login ?? '—',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        );
       },
     );
   }

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/config/one_c_config.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/one_c_json.dart';
+import '../../core/utils/document_author_support.dart';
 import '../../core/utils/one_c_date.dart';
 import '../../domain/entities/create_order_request.dart';
 import '../../domain/entities/order_type.dart';
@@ -85,7 +86,13 @@ class OrderRepositoryImpl implements OrderRepository {
             ),
           )
           .toList();
-
+      for (final order in orders) {
+        await DocumentAuthorSupport.cacheDocumentAuthor(
+          documentId: order.id,
+          authorLogin: order.authorLogin,
+          author: order.author,
+        );
+      }
       if (status != null) {
         return orders.where((o) => o.status == status).toList();
       }
@@ -112,7 +119,13 @@ class OrderRepositoryImpl implements OrderRepository {
       if (data == null) {
         return null;
       }
-      return OrderRequestModel.from1CDetailJson(data);
+      final order = OrderRequestModel.from1CDetailJson(data);
+      await DocumentAuthorSupport.cacheDocumentAuthor(
+        documentId: order.id,
+        authorLogin: order.authorLogin,
+        author: order.author,
+      );
+      return order;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

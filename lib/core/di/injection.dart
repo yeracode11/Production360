@@ -12,18 +12,23 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../../data/repositories/inventory_repository_impl.dart';
+import '../../data/repositories/printer_repository_impl.dart';
 import '../../data/repositories/production_repository_impl.dart';
 import '../../data/repositories/transfer_repository_impl.dart';
 import '../../data/repositories/writeoff_repository_impl.dart';
 import '../../domain/repositories/inventory_repository.dart';
+import '../../domain/repositories/printer_repository.dart';
 import '../../domain/repositories/production_repository.dart';
 import '../../domain/repositories/transfer_repository.dart';
 import '../../domain/repositories/writeoff_repository.dart';
 import '../../domain/services/force_update_notifier.dart';
+import '../../presentation/widgets/on_screen_keyboard/on_screen_keyboard_controller.dart';
 import '../network/app_version_provider.dart';
 import '../network/dio_client.dart';
 import '../storage/auth_session_storage.dart';
 import '../storage/document_author_storage.dart';
+import '../storage/inventory_completed_storage.dart';
+import '../storage/printer_config_storage.dart';
 import '../storage/selected_warehouse_storage.dart';
 
 final GetIt sl = GetIt.instance;
@@ -38,6 +43,12 @@ Future<void> configureDependencies() async {
 
   final documentAuthorStorage = await DocumentAuthorStorage.create();
   sl.registerSingleton<DocumentAuthorStorage>(documentAuthorStorage);
+
+  final printerConfigStorage = await PrinterConfigStorage.create();
+  sl.registerSingleton<PrinterConfigStorage>(printerConfigStorage);
+
+  final inventoryCompletedStorage = await InventoryCompletedStorage.create();
+  sl.registerSingleton<InventoryCompletedStorage>(inventoryCompletedStorage);
 
   sl.registerLazySingleton<AppVersionProvider>(() => AppVersionProvider());
   sl.registerLazySingleton<ForceUpdateNotifier>(
@@ -80,10 +91,19 @@ Future<void> configureDependencies() async {
     () => WriteoffRepositoryImpl(dioClient: sl<DioClient>()),
   );
   sl.registerLazySingleton<InventoryRepository>(
-    () => InventoryRepositoryImpl(dioClient: sl<DioClient>()),
+    () => InventoryRepositoryImpl(
+      dioClient: sl<DioClient>(),
+      completedStorage: sl<InventoryCompletedStorage>(),
+    ),
   );
   sl.registerLazySingleton<ProductionRepository>(
     () => ProductionRepositoryImpl(dioClient: sl<DioClient>()),
+  );
+  sl.registerLazySingleton<PrinterRepository>(
+    () => PrinterRepositoryImpl(
+      storage: sl<PrinterConfigStorage>(),
+      dioClient: sl<DioClient>(),
+    ),
   );
 
   sl.registerLazySingleton<Dio>(
@@ -109,5 +129,9 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<CatalogRepository>(
     () => CatalogRepositoryImpl(dio: sl<Dio>(instanceName: 'catalog')),
+  );
+
+  sl.registerLazySingleton<OnScreenKeyboardController>(
+    OnScreenKeyboardController.new,
   );
 }

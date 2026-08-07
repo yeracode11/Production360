@@ -42,13 +42,21 @@ class ProductionRepositoryImpl implements ProductionRepository {
       _throwIfOneCError(json, 'Ошибка загрузки производств');
 
       final docs = json['data'] as List<dynamic>? ?? [];
-      return docs
+      final productions = docs
           .map(
             (e) => ProductionDocumentModel.from1CListJson(
               e as Map<String, dynamic>,
             ),
           )
           .toList();
+      for (final document in productions) {
+        await DocumentAuthorSupport.cacheDocumentAuthor(
+          documentId: document.id,
+          authorLogin: document.authorLogin,
+          author: document.author,
+        );
+      }
+      return productions;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }
@@ -68,7 +76,13 @@ class ProductionRepositoryImpl implements ProductionRepository {
       if (data == null) {
         return null;
       }
-      return ProductionDocumentModel.from1CDetailJson(data);
+      final document = ProductionDocumentModel.from1CDetailJson(data);
+      await DocumentAuthorSupport.cacheDocumentAuthor(
+        documentId: document.id,
+        authorLogin: document.authorLogin,
+        author: document.author,
+      );
+      return document;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));
     }

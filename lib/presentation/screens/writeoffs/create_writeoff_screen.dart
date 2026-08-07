@@ -17,7 +17,9 @@ import '../../bloc/writeoffs/writeoffs_cubit.dart';
 import '../../widgets/add_nomenclature_button.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/document_author_row.dart';
+import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
 import 'select_writeoff_reason_screen.dart';
 import 'writeoff_details_screen.dart';
 
@@ -125,8 +127,8 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
     return null;
   }
 
-  void _changeProductQuantity(NomenclatureProduct product, num quantity) {
-    if (quantity <= 0) {
+  void _changeProductQuantity(NomenclatureProduct product, num? quantity) {
+    if (quantity == null || quantity <= 0) {
       _removeProduct(product);
       return;
     }
@@ -227,14 +229,10 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
   Widget build(BuildContext context) {
     final created = _createdDocumentId;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          created != null
-              ? AppStrings.writeoffDetailsTitle
-              : AppStrings.createWriteoffTitle,
-        ),
-      ),
+    return DocumentScreenScaffold(
+      title: created != null
+          ? AppStrings.writeoffDetailsTitle
+          : AppStrings.createWriteoffTitle,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -321,7 +319,7 @@ class _CreateWriteoffScreenState extends State<CreateWriteoffScreen> {
                             else
                               _buildReasonSelector(predata),
                             const SizedBox(height: 12),
-                            TextFormField(
+                            OnScreenKeyboardTextField(
                               controller: _commentController,
                               maxLines: null,
                               minLines: 2,
@@ -515,7 +513,7 @@ class _WriteoffLineCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            TextFormField(
+            OnScreenKeyboardTextField(
               controller: row.quantityController,
               decoration: InputDecoration(
                 labelText: AppStrings.itemQuantity,

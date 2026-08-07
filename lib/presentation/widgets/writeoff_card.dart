@@ -4,11 +4,17 @@ import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/stock_writeoff.dart';
 import '../screens/writeoffs/writeoff_details_screen.dart';
+import 'document_author_row.dart';
 
 class WriteoffCard extends StatelessWidget {
-  const WriteoffCard({super.key, required this.writeoff});
+  const WriteoffCard({
+    super.key,
+    required this.writeoff,
+    this.onReturnFromDetails,
+  });
 
   final StockWriteoff writeoff;
+  final VoidCallback? onReturnFromDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +26,13 @@ class WriteoffCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => WriteoffDetailsScreen(writeoffId: writeoff.id),
             ),
           );
+          onReturnFromDetails?.call();
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -47,11 +54,16 @@ class WriteoffCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _PostedChip(isPosted: writeoff.isPosted),
                 ],
               ),
               const SizedBox(height: 12),
               _InfoRow(label: AppStrings.date, value: dateLabel),
+              const SizedBox(height: 4),
+              DocumentCardAuthorRow(
+                documentId: writeoff.id,
+                authorLogin: writeoff.authorLogin,
+                author: writeoff.author,
+              ),
               const SizedBox(height: 4),
               _InfoRow(
                 label: AppStrings.warehouse,
@@ -71,30 +83,6 @@ class WriteoffCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PostedChip extends StatelessWidget {
-  const _PostedChip({required this.isPosted});
-
-  final bool isPosted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isPosted ? AppColors.mintSoft : AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isPosted ? AppStrings.writeoffPosted : AppStrings.writeoffNotPosted,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isPosted ? AppColors.turquoiseDark : AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
       ),
     );
   }

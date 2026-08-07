@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/order_type.dart';
 import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/order_repository.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 import '../../widgets/accompanying_product_label.dart';
 import 'create_order_screen.dart';
 
@@ -66,9 +67,7 @@ class _SelectOrderTypeScreenState extends State<SelectOrderTypeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.createOrderTitle),
-      ),
+      appBar: AppBarWithKeyboard(title: AppStrings.createOrderTitle),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

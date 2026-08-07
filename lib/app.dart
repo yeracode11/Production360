@@ -29,6 +29,7 @@ import 'presentation/screens/force_update/force_update_screen.dart';
 import 'presentation/screens/login/login_screen.dart';
 import 'presentation/screens/main/main_shell.dart';
 import 'presentation/widgets/dismiss_keyboard.dart';
+import 'presentation/widgets/on_screen_keyboard/on_screen_keyboard_host.dart';
 
 class ConfectioneryApp extends StatelessWidget {
   const ConfectioneryApp({super.key});
@@ -105,8 +106,10 @@ class ConfectioneryApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           builder: (context, child) {
-            return DismissKeyboard(
-              child: child ?? const SizedBox.shrink(),
+            return OnScreenKeyboardHost(
+              child: DismissKeyboard(
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           home: const _AppRoot(),

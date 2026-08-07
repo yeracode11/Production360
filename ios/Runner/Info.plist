@@ -43,6 +43,8 @@
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Приложению нужен доступ к локальной сети для печати документов на сетевой принтер.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>

@@ -99,7 +99,7 @@ class WriteoffsScreen extends StatelessWidget {
                   ),
                   if (state is WriteoffsLoading)
                     const LinearProgressIndicator(minHeight: 2),
-                  Expanded(child: _buildBody(context, state)),
+                  Expanded(child: _buildBody(context, state, warehouseId)),
                 ],
               );
             },
@@ -109,7 +109,11 @@ class WriteoffsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, WriteoffsState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WriteoffsState state,
+    String warehouseId,
+  ) {
     if (state is WriteoffsLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -177,7 +181,11 @@ class WriteoffsScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80),
         itemCount: writeoffs.length,
         itemBuilder: (context, index) {
-          return WriteoffCard(writeoff: writeoffs[index]);
+          return WriteoffCard(
+            writeoff: writeoffs[index],
+            onReturnFromDetails: () =>
+                context.read<WriteoffsCubit>().loadWriteoffs(warehouseId),
+          );
         },
       ),
     );

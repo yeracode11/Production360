@@ -20,8 +20,14 @@ abstract final class AppColors {
 
   // Semantic
   static const Color success = Color(0xFF43A047);
+  static const Color successSoft = Color(0xFFE8F5E9);
+  static const Color successBorder = Color(0xFFC8E6C9);
   static const Color warning = Color(0xFFE9B949);
   static const Color error = Color(0xFFE57373);
+  static const Color mismatchSoft = Color(0xFFFFF0F0);
+  static const Color mismatchBorder = Color(0xFFF5C6C6);
+  static const Color mismatchAccent = Color(0xFFE53935);
+  static const Color mismatchText = Color(0xFFC62828);
 
   // Legacy aliases (used across widgets)
   static const Color cream = background;

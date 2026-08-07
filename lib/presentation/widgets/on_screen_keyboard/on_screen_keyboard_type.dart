@@ -1,0 +1,4 @@
+enum OnScreenKeyboardType {
+  text,
+  numeric,
+}

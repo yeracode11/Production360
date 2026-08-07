@@ -4,23 +4,27 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/config/app_features.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/platform_layout.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../bloc/warehouse/warehouse_cubit.dart';
+import '../../bloc/warehouse/warehouse_state.dart';
+import '../../navigation/app_navigation.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_sidebar.dart';
 import '../inventory/create_inventory_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../production/create_production_screen.dart';
 import '../production/production_screen.dart';
 import '../orders/select_order_type_screen.dart';
 import '../orders/orders_screen.dart';
+import '../settings/settings_screen.dart';
 import '../transfers/create_transfer_screen.dart';
 import '../transfers/transfers_placeholder_screen.dart';
 import '../transfers/transfers_screen.dart';
 import '../writeoffs/create_writeoff_screen.dart';
 import '../writeoffs/writeoffs_screen.dart';
-import '../../bloc/warehouse/warehouse_state.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -33,14 +37,6 @@ class _MainShellState extends State<MainShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentIndex = 0;
 
-  static const _titles = [
-    AppStrings.orders,
-    AppStrings.transfers,
-    AppStrings.writeoffs,
-    AppStrings.inventory,
-    AppStrings.production,
-  ];
-
   final _screens = [
     const OrdersScreen(),
     AppFeatures.transfersEnabled
@@ -50,6 +46,12 @@ class _MainShellState extends State<MainShell> {
     const InventoryScreen(),
     const ProductionScreen(),
   ];
+
+  void _setIndex(int index) => setState(() => _currentIndex = index);
+
+  void _logout() {
+    context.read<AuthBloc>().add(const AuthLogoutRequested());
+  }
 
   void _openCreateOrder(WarehouseLoaded warehouseState) {
     Navigator.of(context).push<bool>(
@@ -101,28 +103,98 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
+  void _onCreatePressed(WarehouseLoaded warehouseState) {
+    switch (_currentIndex) {
+      case 0:
+        _openCreateOrder(warehouseState);
+      case 1:
+        if (AppFeatures.transfersEnabled) {
+          _openCreateTransfer(warehouseState);
+        }
+      case 2:
+        _openCreateWriteoff(warehouseState);
+      case 3:
+        _openCreateInventory(warehouseState);
+      case 4:
+        _openCreateProduction(warehouseState);
+    }
+  }
+
+  String? get _createActionLabel {
+    switch (_currentIndex) {
+      case 0:
+        return AppStrings.createOrder;
+      case 1:
+        return AppFeatures.transfersEnabled ? AppStrings.createTransfer : null;
+      case 2:
+        return AppStrings.createWriteoff;
+      case 3:
+        return AppStrings.createInventory;
+      case 4:
+        return AppStrings.createProduction;
+      default:
+        return null;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (PlatformLayout.useDesktopNavigation(context)) {
+      return _buildDesktopShell(context);
+    }
+    return _buildMobileShell(context);
+  }
+
+  Widget _buildDesktopShell(BuildContext context) {
+    return Scaffold(
+      body: Row(
+        children: [
+          AppSidebar(
+            currentIndex: _currentIndex,
+            onNavigate: _setIndex,
+            onLogout: _logout,
+          ),
+          const VerticalDivider(width: 1),
+          Expanded(
+            child: Column(
+              children: [
+                AppHeader(
+                  title: AppNavigation.titles[_currentIndex],
+                  showMenuButton: false,
+                  showOnScreenKeyboard: true,
+                  trailing: _buildCreateAction(desktop: true),
+                ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: _screens,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileShell(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppHeader(
-        title: _titles[_currentIndex],
+        title: AppNavigation.titles[_currentIndex],
         onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        showOnScreenKeyboard: PlatformLayout.isDesktopPlatform,
       ),
       drawer: _AppDrawer(
         currentIndex: _currentIndex,
         onNavigate: (index) {
           Navigator.pop(context);
-          setState(() => _currentIndex = index);
+          _setIndex(index);
         },
         onLogout: () {
           Navigator.pop(context);
-          context.read<AuthBloc>().add(const AuthLogoutRequested());
+          _logout();
         },
       ),
       body: IndexedStack(
@@ -132,100 +204,46 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment),
-            label: AppStrings.orders,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.swap_horiz_outlined),
-            activeIcon: Icon(Icons.swap_horiz),
-            label: AppStrings.transfers,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.remove_circle_outline),
-            activeIcon: Icon(Icons.remove_circle),
-            label: AppStrings.writeoffs,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined),
-            activeIcon: Icon(Icons.inventory_2),
-            label: AppStrings.inventory,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.factory_outlined),
-            activeIcon: Icon(Icons.factory),
-            label: AppStrings.production,
-          ),
+        onTap: _setIndex,
+        items: [
+          for (final item in AppNavigation.items)
+            BottomNavigationBarItem(
+              icon: Icon(item.icon),
+              activeIcon: Icon(item.selectedIcon),
+              label: item.label,
+            ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0
-          ? BlocBuilder<WarehouseCubit, WarehouseState>(
-              builder: (context, state) {
-                if (state is! WarehouseLoaded) return const SizedBox.shrink();
-                return FloatingActionButton.extended(
-                  onPressed: () => _openCreateOrder(state),
-                  icon: const Icon(Icons.add),
-                  label: const Text(AppStrings.createOrder),
-                );
-              },
-            )
-          : _currentIndex == 1 && AppFeatures.transfersEnabled
-              ? BlocBuilder<WarehouseCubit, WarehouseState>(
-                  builder: (context, state) {
-                    if (state is! WarehouseLoaded) {
-                      return const SizedBox.shrink();
-                    }
-                    return FloatingActionButton.extended(
-                      onPressed: () => _openCreateTransfer(state),
-                      icon: const Icon(Icons.add),
-                      label: const Text(AppStrings.createTransfer),
-                    );
-                  },
-                )
-              : _currentIndex == 2
-                  ? BlocBuilder<WarehouseCubit, WarehouseState>(
-                      builder: (context, state) {
-                        if (state is! WarehouseLoaded) {
-                          return const SizedBox.shrink();
-                        }
-                        return FloatingActionButton.extended(
-                          onPressed: () => _openCreateWriteoff(state),
-                          icon: const Icon(Icons.add),
-                          label: const Text(AppStrings.createWriteoff),
-                        );
-                      },
-                    )
-                  : _currentIndex == 3
-                      ? BlocBuilder<WarehouseCubit, WarehouseState>(
-                          builder: (context, state) {
-                            if (state is! WarehouseLoaded) {
-                              return const SizedBox.shrink();
-                            }
-                            return FloatingActionButton.extended(
-                              onPressed: () => _openCreateInventory(state),
-                              icon: const Icon(Icons.add),
-                              label: const Text(AppStrings.createInventory),
-                            );
-                          },
-                        )
-                      : _currentIndex == 4
-                          ? BlocBuilder<WarehouseCubit, WarehouseState>(
-                              builder: (context, state) {
-                                if (state is! WarehouseLoaded) {
-                                  return const SizedBox.shrink();
-                                }
-                                return FloatingActionButton.extended(
-                                  onPressed: () => _openCreateProduction(state),
-                                  icon: const Icon(Icons.add),
-                                  label:
-                                      const Text(AppStrings.createProduction),
-                                );
-                              },
-                            )
-                          : null,
+      floatingActionButton: _buildCreateAction(desktop: false),
+    );
+  }
+
+  Widget? _buildCreateAction({required bool desktop}) {
+    final label = _createActionLabel;
+    if (label == null) {
+      return null;
+    }
+
+    return BlocBuilder<WarehouseCubit, WarehouseState>(
+      builder: (context, state) {
+        if (state is! WarehouseLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        if (desktop) {
+          return FilledButton.icon(
+            onPressed: () => _onCreatePressed(state),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(label),
+          );
+        }
+
+        return FloatingActionButton.extended(
+          onPressed: () => _onCreatePressed(state),
+          icon: const Icon(Icons.add),
+          label: Text(label),
+        );
+      },
     );
   }
 }
@@ -240,34 +258,6 @@ class _AppDrawer extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onNavigate;
   final VoidCallback onLogout;
-
-  static const _navItems = [
-    _DrawerNavItem(
-      label: AppStrings.orders,
-      icon: Icons.assignment_outlined,
-      selectedIcon: Icons.assignment,
-    ),
-    _DrawerNavItem(
-      label: AppStrings.transfers,
-      icon: Icons.swap_horiz_outlined,
-      selectedIcon: Icons.swap_horiz,
-    ),
-    _DrawerNavItem(
-      label: AppStrings.writeoffs,
-      icon: Icons.remove_circle_outline,
-      selectedIcon: Icons.remove_circle,
-    ),
-    _DrawerNavItem(
-      label: AppStrings.inventory,
-      icon: Icons.inventory_2_outlined,
-      selectedIcon: Icons.inventory_2,
-    ),
-    _DrawerNavItem(
-      label: AppStrings.production,
-      icon: Icons.factory_outlined,
-      selectedIcon: Icons.factory,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -305,9 +295,9 @@ class _AppDrawer extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
-            for (var i = 0; i < _navItems.length; i++)
+            for (var i = 0; i < AppNavigation.items.length; i++)
               _DrawerNavTile(
-                item: _navItems[i],
+                item: AppNavigation.items[i],
                 selected: currentIndex == i,
                 onTap: () => onNavigate(i),
               ),
@@ -320,7 +310,12 @@ class _AppDrawer extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text(AppStrings.settings),
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
             ),
             const Spacer(),
             const Divider(height: 1),
@@ -339,18 +334,6 @@ class _AppDrawer extends StatelessWidget {
   }
 }
 
-class _DrawerNavItem {
-  const _DrawerNavItem({
-    required this.label,
-    required this.icon,
-    required this.selectedIcon,
-  });
-
-  final String label;
-  final IconData icon;
-  final IconData selectedIcon;
-}
-
 class _DrawerNavTile extends StatelessWidget {
   const _DrawerNavTile({
     required this.item,
@@ -358,7 +341,7 @@ class _DrawerNavTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final _DrawerNavItem item;
+  final AppNavItem item;
   final bool selected;
   final VoidCallback onTap;
 
