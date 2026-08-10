@@ -4,7 +4,7 @@ project(confectionery_logistics LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "confectionery_logistics")
+set(BINARY_NAME "Production360")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
