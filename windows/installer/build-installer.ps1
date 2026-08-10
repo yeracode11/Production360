@@ -1,8 +1,8 @@
-# Production360 — сборка Windows installer (Inno Setup)
-# Запуск из PowerShell в папке windows\installer:
+# Production360 Windows installer build script (Inno Setup)
+# Run from windows\installer:
 #   .\build-installer.ps1
 #
-# Опционально указать версию (иначе читается из pubspec.yaml):
+# Optional version override (default: read from pubspec.yaml):
 #   .\build-installer.ps1 -Version 1.0.5
 
 param(
@@ -20,7 +20,7 @@ function Get-VersionFromPubspec {
     $pubspec = Join-Path $RootDir "pubspec.yaml"
     $line = Get-Content $pubspec | Where-Object { $_ -match '^version:\s*' } | Select-Object -First 1
     if (-not $line) {
-        throw "Не удалось прочитать version из pubspec.yaml"
+        throw "Could not read version from pubspec.yaml"
     }
     return ($line -replace '^version:\s*', '').Split('+')[0].Trim()
 }
@@ -29,11 +29,12 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = Get-VersionFromPubspec
 }
 
-Write-Host "==> Версия: $Version"
-
+Write-Host "==> Version: $Version"
 Write-Host "==> Flutter build windows --release"
+
 Push-Location $RootDir
 try {
+    flutter clean
     flutter pub get
     flutter build windows --release --build-name=$Version
 }
@@ -43,7 +44,7 @@ finally {
 
 $ReleaseDir = Join-Path $RootDir "build\windows\x64\runner\Release"
 if (-not (Test-Path (Join-Path $ReleaseDir "Production360.exe"))) {
-    throw "Не найден Production360.exe в $ReleaseDir"
+    throw "Production360.exe not found in $ReleaseDir"
 }
 
 if (-not (Test-Path $RedistDir)) {
@@ -51,7 +52,7 @@ if (-not (Test-Path $RedistDir)) {
 }
 
 if (-not (Test-Path $VcRedistPath)) {
-    Write-Host "==> Скачивание Visual C++ Redistributable..."
+    Write-Host "==> Downloading Visual C++ Redistributable..."
     Invoke-WebRequest -Uri $VcRedistUrl -OutFile $VcRedistPath
 }
 
@@ -62,16 +63,12 @@ $IsccCandidates = @(
 
 $Iscc = $IsccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $Iscc) {
-    throw @"
-Inno Setup 6 не найден.
-Скачайте: https://jrsoftware.org/isdl.php
-После установки запустите скрипт снова.
-"@
+    throw "Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php and run again."
 }
 
-Write-Host "==> Компиляция installer через Inno Setup"
+Write-Host "==> Compiling installer with Inno Setup"
 & $Iscc "/DMyAppVersion=$Version" $IssPath
 
 $OutputFile = Join-Path $RootDir "build\windows\installer\Production360-Setup-$Version.exe"
 Write-Host ""
-Write-Host "Готово: $OutputFile" -ForegroundColor Green
+Write-Host "Done: $OutputFile" -ForegroundColor Green
