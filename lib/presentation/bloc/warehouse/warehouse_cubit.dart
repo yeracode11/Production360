@@ -19,7 +19,8 @@ class WarehouseCubit extends Cubit<WarehouseState> {
 
   /// Fetches warehouse list from 1C API.
   Future<void> loadFromApi({Warehouse? keepSelected}) async {
-    emit(const WarehouseLoading());
+    await _bootstrapFromCachedUser(keepSelected: keepSelected);
+
     try {
       final warehouses = await _authRepository.fetchWarehousesFromApi();
       if (warehouses.isEmpty) {
@@ -30,8 +31,26 @@ class WarehouseCubit extends Cubit<WarehouseState> {
       final selected = await _resolveSelection(warehouses, keepSelected);
       emit(WarehouseLoaded(warehouses: warehouses, selectedWarehouse: selected));
     } catch (e) {
-      emit(WarehouseFailure(e.toString()));
+      if (state is! WarehouseLoaded) {
+        emit(WarehouseFailure(e.toString()));
+      }
     }
+  }
+
+  Future<void> _bootstrapFromCachedUser({Warehouse? keepSelected}) async {
+    final user = await _authRepository.getCurrentUser();
+    if (user == null || user.warehouses.isEmpty) {
+      emit(const WarehouseLoading());
+      return;
+    }
+
+    final selected = await _resolveSelection(user.warehouses, keepSelected);
+    emit(
+      WarehouseLoaded(
+        warehouses: user.warehouses,
+        selectedWarehouse: selected,
+      ),
+    );
   }
 
   /// Silent refresh — keeps current UI, no loading spinner.

@@ -35,3 +35,12 @@ String? formatAmountFor1C(String text) {
   if (value == null || value <= 0) return null;
   return formatQuantityFor1C(value);
 }
+
+/// Сумма/цена в тенге для отображения в UI.
+String formatTengeAmount(double? value) {
+  if (value == null) return '';
+  final amount = value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '$amount ₸';
+}

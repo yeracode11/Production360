@@ -20,7 +20,10 @@ class OrdersCubit extends Cubit<OrdersState> {
   final WarehouseCubit _warehouseCubit;
 
   Future<void> loadOrders(String warehouseId) async {
-    emit(const OrdersLoading());
+    final previous = state;
+    if (previous is! OrdersLoaded || previous.outletId != warehouseId) {
+      emit(const OrdersLoading());
+    }
     try {
       final week = _weekFromStateOrCurrent();
       final orders = await _fetchMergedOrders(warehouseId, week);
@@ -103,23 +106,21 @@ class OrdersCubit extends Cubit<OrdersState> {
     return WeekRange.current();
   }
 
-  /// Актуальные заявки + завершённые за выбранную неделю (отдельный запрос к 1С).
+  /// Актуальные заявки + завершённые за выбранную неделю (параллельно).
   Future<List<OrderRequest>> _fetchMergedOrders(
     String warehouseId,
     WeekRange week,
   ) async {
-    final activeOrders = await _orderRepository.getOrders(outletId: warehouseId);
+    final activeFuture = _orderRepository.getOrders(outletId: warehouseId);
+    final weekFuture = _orderRepository
+        .getOrders(
+          outletId: warehouseId,
+          weekDate: week.start,
+        )
+        .catchError((_) => <OrderRequest>[]);
 
-    try {
-      final weekOrders = await _orderRepository.getOrders(
-        outletId: warehouseId,
-        weekDate: week.start,
-      );
-      return _mergeOrders(activeOrders, weekOrders);
-    } catch (_) {
-      // 1С может не поддерживать date — фильтруем локально.
-      return activeOrders;
-    }
+    final results = await Future.wait([activeFuture, weekFuture]);
+    return _mergeOrders(results[0], results[1]);
   }
 
   List<OrderRequest> _mergeOrders(

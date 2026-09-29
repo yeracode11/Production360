@@ -11,6 +11,8 @@ abstract final class AppStrings {
   static const String passwordRequired = 'Введите пароль';
   static const String invalidCredentials = 'Неверный логин или пароль';
   static const String authError = 'Не удалось войти. Проверьте логин и пароль';
+  static const String noAccessibleModules =
+      'У вашей учётной записи нет доступа к разделам приложения. Обратитесь к администратору.';
 
   // Navigation
   static const String orders = 'Заявки';
@@ -98,6 +100,7 @@ abstract final class AppStrings {
   static const String orderReadOnlyHint =
       'Созданные и завершённые заказы недоступны для редактирования';
   static const String recipient = 'Получатель';
+  static const String sender = 'Отправитель';
   static const String author = 'Автор';
   static const String authorCurrentUserBadge = 'Вы';
   static const String receiptItems = 'Приёмка';
@@ -149,6 +152,8 @@ abstract final class AppStrings {
   static const String onScreenKeyboardShow = 'Экранная клавиатура';
   static const String onScreenKeyboardHide = 'Скрыть клавиатуру';
   static const String onScreenKeyboardSpace = 'Пробел';
+  static const String onScreenKeyboardSymbols = '#+=';
+  static const String onScreenKeyboardLetters = 'АБВ';
 
   // Placeholder screens
   static const String transfersPlaceholder = 'Перемещение товаров';
@@ -270,6 +275,35 @@ abstract final class AppStrings {
   static const String noWriteoffReasons = 'Нет доступных причин списания';
   static const String searchWriteoffReasonHint = 'Поиск причины';
   static const String writeoffReasonsNotFound = 'Причины не найдены';
+
+  // Returns (возврат поставщику)
+  static const String returns = 'Возврат';
+  static const String createReturn = 'Создать возврат';
+  static const String createReturnTitle = 'Новый возврат';
+  static const String confirmCreateReturn =
+      'Вы уверены, что хотите создать возврат?';
+  static const String returnCreated = 'Возврат создан';
+  static const String returnDetailsTitle = 'Детали возврата';
+  static const String returnNumber = 'Возврат №';
+  static const String noReturnsForWeek =
+      'Нет возвратов в выбранном периоде. Выберите другую дату в календаре выше.';
+  static const String returnNotFound = 'Документ возврата не найден';
+  static const String returnItems = 'Товары';
+  static const String noReturnItems = 'Нет позиций в документе';
+  static const String recipientOrganization = 'Организация получатель';
+  static const String operationType = 'Вид операции';
+  static const String documentSum = 'Сумма документа';
+  static const String selectIncomingInvoice = 'Выберите приходную накладную';
+  static const String noIncomingInvoices = 'Нет приходных накладных для возврата';
+  static const String searchIncomingInvoiceHint = 'Поиск приходной накладной';
+  static const String incomingInvoicesNotFound = 'Приходные накладные не найдены';
+  static const String incomingInvoiceTitle = 'Приходная накладная';
+  static const String incomingInvoiceNumber = 'Приходная №';
+  static const String incomingInvoiceNotFound = 'Приходная накладная не найдена';
+  static const String incomingInvoices = 'Приходные накладные';
+  static const String itemPrice = 'Цена';
+  static const String itemSum = 'Сумма';
+
   static const String nomenclatureNoResults = 'Ничего не найдено';
   static const String searchResultsFound = 'Найдено';
   static const String nomenclatureShown = 'Показано';

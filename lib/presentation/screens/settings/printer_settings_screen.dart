@@ -12,6 +12,7 @@ import '../../../domain/repositories/printer_repository.dart';
 import '../../bloc/warehouse/warehouse_cubit.dart';
 import '../../bloc/warehouse/warehouse_state.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import '../../widgets/printer_log_dialog.dart';
 
@@ -202,7 +203,8 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBarWithKeyboard(title: AppStrings.printerSettings),
-      body: BlocBuilder<WarehouseCubit, WarehouseState>(
+      body: DesktopContentConstraint(
+        child: BlocBuilder<WarehouseCubit, WarehouseState>(
         builder: (context, state) {
           if (state is! WarehouseLoaded) {
             return const Center(child: CircularProgressIndicator());
@@ -346,6 +348,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

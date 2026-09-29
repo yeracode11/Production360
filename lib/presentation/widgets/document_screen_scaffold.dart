@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_bar_with_keyboard.dart';
+import 'desktop_content_constraint.dart';
 
 /// Scaffold для экранов документов.
 class DocumentScreenScaffold extends StatelessWidget {
@@ -31,7 +32,7 @@ class DocumentScreenScaffold extends StatelessWidget {
         bottom: bottom,
         leading: leading,
       ),
-      body: body,
+      body: DesktopContentConstraint(child: body),
     );
   }
 }

@@ -24,3 +24,8 @@ final class AuthLogoutRequested extends AuthEvent {
 final class AuthCheckRequested extends AuthEvent {
   const AuthCheckRequested();
 }
+
+/// Обновляет пользователя и роли с `/mobile/auth` (без выхода из аккаунта).
+final class AuthSessionRefreshRequested extends AuthEvent {
+  const AuthSessionRefreshRequested();
+}

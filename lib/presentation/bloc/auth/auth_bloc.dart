@@ -13,18 +13,47 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthCheckRequested>(_onCheck);
     on<AuthLoginRequested>(_onLogin);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthSessionRefreshRequested>(_onSessionRefresh);
   }
 
   final AuthRepository _authRepository;
 
   Future<void> _onCheck(AuthCheckRequested event, Emitter<AuthState> emit) async {
-    final user = await _authRepository.restorePersistedSession();
-    if (user != null) {
-      emit(AuthAuthenticated(user));
+    if (!_authRepository.hasPersistedCredentials) {
+      emit(const AuthUnauthenticated());
       return;
     }
 
-    emit(const AuthUnauthenticated());
+    emit(const AuthLoading());
+    _authRepository.bootstrapPersistedSession();
+
+    final refreshedUser = await _authRepository.refreshPersistedSession();
+    if (refreshedUser == null) {
+      emit(const AuthUnauthenticated());
+      return;
+    }
+
+    emit(AuthAuthenticated(refreshedUser));
+  }
+
+  Future<void> _onSessionRefresh(
+    AuthSessionRefreshRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state is! AuthAuthenticated) {
+      return;
+    }
+
+    final refreshedUser = await _authRepository.refreshPersistedSession();
+    if (refreshedUser == null) {
+      emit(const AuthUnauthenticated());
+      return;
+    }
+
+    final currentUser = (state as AuthAuthenticated).user;
+    if (currentUser != refreshedUser) {
+      emit(AuthAuthenticated(refreshedUser));
+    }
   }
 
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {

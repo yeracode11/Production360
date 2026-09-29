@@ -6,10 +6,24 @@ class UserModel extends User {
     required super.username,
     required super.uid,
     required super.warehouses,
+    super.roles,
   });
 
   /// Parses 1C authentication response JSON.
   factory UserModel.from1CJson(Map<String, dynamic> json) {
+    List<String>? roles;
+    if (json.containsKey('roles')) {
+      final raw = json['roles'];
+      if (raw is List) {
+        roles = raw
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList();
+      } else {
+        roles = const [];
+      }
+    }
+
     return UserModel(
       username: json['ИмяПользователя'] as String,
       uid: json['УИДПользователя'] as String,
@@ -17,6 +31,7 @@ class UserModel extends User {
               ?.map((e) => WarehouseModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      roles: roles,
     );
   }
 
@@ -26,5 +41,6 @@ class UserModel extends User {
         'Склады': warehouses
             .map((w) => (w as WarehouseModel).toJson())
             .toList(),
+        if (roles != null) 'roles': roles,
       };
 }

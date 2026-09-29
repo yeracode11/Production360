@@ -275,7 +275,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
               tabs: const [
                 Tab(text: AppStrings.orderDetailsTab),
                 Tab(text: AppStrings.receiptItems),
-              ],
+              ], 
             ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

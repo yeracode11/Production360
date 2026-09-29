@@ -3,10 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/platform_layout.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../../widgets/app_bar_with_keyboard.dart';
 import '../../widgets/dismiss_keyboard.dart';
+import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,7 +44,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = PlatformLayout.isDesktopPlatform;
+
     return Scaffold(
+      appBar: isDesktop
+          ? AppBarWithKeyboard(
+              title: AppStrings.appName,
+              automaticallyImplyLeading: false,
+            )
+          : null,
       body: BlocConsumer<AuthBloc, AuthState>(
         listenWhen: (previous, current) =>
             current is AuthUnauthenticated && current.loginError != null,
@@ -57,7 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
         },
         builder: (context, state) {
           final isLoading = state is AuthLoading;
-          final loginError = state is AuthUnauthenticated ? state.loginError : null;
+          final loginError =
+              state is AuthUnauthenticated ? state.loginError : null;
 
           return DismissKeyboard.onTap(
             context,
@@ -67,103 +79,109 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          AppStrings.appName,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          AppStrings.loginTitle,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppColors.deepBrownLight,
-                              ),
-                        ),
-                        const SizedBox(height: 40),
-                        TextFormField(
-                          controller: _loginController,
-                          decoration: const InputDecoration(
-                            labelText: AppStrings.login,
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          textInputAction: TextInputAction.next,
-                          enabled: !isLoading,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return AppStrings.loginRequired;
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          decoration: InputDecoration(
-                            labelText: AppStrings.password,
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () {
-                                setState(() => _obscurePassword = !_obscurePassword);
-                              },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (!isDesktop) ...[
+                            Text(
+                              AppStrings.appName,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineMedium,
                             ),
-                          ),
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          enabled: !isLoading,
-                          onFieldSubmitted: (_) => _submit(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return AppStrings.passwordRequired;
-                            }
-                            return null;
-                          },
-                        ),
-                        if (loginError != null) ...[
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                          ],
                           Text(
-                            loginError,
+                            AppStrings.loginTitle,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w500,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: AppColors.deepBrownLight,
                                 ),
                           ),
+                          const SizedBox(height: 40),
+                          OnScreenKeyboardTextField(
+                            controller: _loginController,
+                            primaryOnScreenKeyboard: true,
+                            decoration: const InputDecoration(
+                              labelText: AppStrings.login,
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            textInputAction: TextInputAction.next,
+                            enabled: !isLoading,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return AppStrings.loginRequired;
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          OnScreenKeyboardTextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: AppStrings.password,
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () {
+                                  setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  );
+                                },
+                              ),
+                            ),
+                            textInputAction: TextInputAction.done,
+                            enabled: !isLoading,
+                            onSubmitted: (_) => _submit(),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return AppStrings.passwordRequired;
+                              }
+                              return null;
+                            },
+                          ),
+                          if (loginError != null) ...[
+                            const SizedBox(height: 16),
+                            Text(
+                              loginError,
+                              textAlign: TextAlign.center,
+                              style:
+                                  Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: AppColors.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                            ),
+                          ],
+                          const SizedBox(height: 32),
+                          ElevatedButton(
+                            onPressed: isLoading ? null : _submit,
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(AppStrings.loginButton),
+                          ),
                         ],
-                        const SizedBox(height: 32),
-                        ElevatedButton(
-                          onPressed: isLoading ? null : _submit,
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(AppStrings.loginButton),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           );
         },
       ),

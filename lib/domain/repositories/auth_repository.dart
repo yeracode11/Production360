@@ -8,6 +8,14 @@ abstract class AuthRepository {
   /// Восстанавливает сессию из локального хранилища после перезапуска приложения.
   Future<User?> restorePersistedSession();
 
+  /// Мгновенно восстанавливает пользователя из кэша и выставляет Basic Auth.
+  User? bootstrapPersistedSession();
+
+  bool get hasPersistedCredentials;
+
+  /// Проверяет сессию на сервере 1С и обновляет локальный снимок пользователя.
+  Future<User?> refreshPersistedSession();
+
   Future<User> validateSession();
   Future<List<Warehouse>> fetchWarehousesFromApi();
 

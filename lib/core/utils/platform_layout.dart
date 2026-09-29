@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 abstract final class PlatformLayout {
   static const desktopBreakpoint = 900.0;
   static const sidebarWidth = 260.0;
+  static const contentMaxWidth = 960.0;
 
   static bool get isDesktopPlatform {
     if (kIsWeb) {

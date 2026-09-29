@@ -21,5 +21,10 @@ abstract final class OneCConfig {
   static const String productionPath = '/mobile/proizvodstvo';
   static const String productionPredataPath = '/mobile/proizvodstvo/predata';
   static const String productionCreatePath = '/mobile/proizvodstvo/create';
+  static const String returnsPath = '/mobile/vozvrat';
+  static const String returnsPredataPath = '/mobile/vozvrat/predata';
+  /// POST — создать возврат поставщику.
+  static const String returnsCreatePath = '/mobile/vozvrat/create';
+  static const String incomingInvoicePath = '/mobile/prikhodnayaNakladnaya';
   static const String printersPath = '/mobile/printers';
 }

@@ -45,6 +45,7 @@ class OnScreenKeyboardTextField extends StatefulWidget {
     this.validator,
     this.enabled = true,
     this.readOnly = false,
+    this.obscureText = false,
     this.primaryOnScreenKeyboard = false,
   });
 
@@ -64,6 +65,7 @@ class OnScreenKeyboardTextField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
   final bool enabled;
   final bool readOnly;
+  final bool obscureText;
   final bool primaryOnScreenKeyboard;
 
   @override
@@ -78,6 +80,7 @@ class _OnScreenKeyboardTextFieldState extends State<OnScreenKeyboardTextField> {
   late final VoidCallback _attachFocusedHandler;
   late final VoidCallback _activatePrimaryHandler;
   bool _ownsFocusNode = true;
+  bool _wasKeyboardVisible = false;
 
   bool get _useOnScreenKeyboard => PlatformLayout.isDesktopPlatform;
 
@@ -94,6 +97,7 @@ class _OnScreenKeyboardTextFieldState extends State<OnScreenKeyboardTextField> {
     _activatePrimaryHandler = _activatePrimary;
     if (widget.primaryOnScreenKeyboard) {
       OnScreenKeyboardRegistry.registerPrimary(_activatePrimaryHandler);
+      _wasKeyboardVisible = _keyboard.isVisible;
       _keyboard.addListener(_handleKeyboardVisibility);
       if (_keyboard.isVisible) {
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -109,24 +113,30 @@ class _OnScreenKeyboardTextFieldState extends State<OnScreenKeyboardTextField> {
     if (!_useOnScreenKeyboard || !widget.primaryOnScreenKeyboard) {
       return;
     }
-    if (_focusNode.canRequestFocus) {
+    if (!_focusNode.hasFocus && _focusNode.canRequestFocus) {
       _focusNode.requestFocus();
     }
     _attachActiveField();
   }
 
   void _handleKeyboardVisibility() {
+    final visible = _keyboard.isVisible;
     if (!_useOnScreenKeyboard ||
         !widget.primaryOnScreenKeyboard ||
-        !_keyboard.isVisible ||
         !mounted) {
+      _wasKeyboardVisible = visible;
       return;
     }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _activatePrimary();
-      }
-    });
+
+    if (visible && !_wasKeyboardVisible) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _activatePrimary();
+        }
+      });
+    }
+
+    _wasKeyboardVisible = visible;
   }
 
   @override
@@ -227,6 +237,7 @@ class _OnScreenKeyboardTextFieldState extends State<OnScreenKeyboardTextField> {
         onEditingComplete: widget.onEditingComplete,
         enabled: common.enabled,
         readOnly: common.readOnly,
+        obscureText: widget.obscureText,
         onTap: common.onTap,
       );
     }
@@ -247,6 +258,7 @@ class _OnScreenKeyboardTextFieldState extends State<OnScreenKeyboardTextField> {
       onEditingComplete: widget.onEditingComplete,
       enabled: common.enabled,
       readOnly: common.readOnly,
+      obscureText: widget.obscureText,
       onTap: common.onTap,
       validator: widget.validator,
     );

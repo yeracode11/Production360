@@ -11,13 +11,15 @@ import '../screens/settings/settings_screen.dart';
 class AppSidebar extends StatelessWidget {
   const AppSidebar({
     super.key,
-    required this.currentIndex,
+    required this.modules,
+    required this.selectedModuleId,
     required this.onNavigate,
     required this.onLogout,
   });
 
-  final int currentIndex;
-  final ValueChanged<int> onNavigate;
+  final List<AppNavItem> modules;
+  final AppModuleId selectedModuleId;
+  final ValueChanged<AppModuleId> onNavigate;
   final VoidCallback onLogout;
 
   @override
@@ -64,11 +66,11 @@ class AppSidebar extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   children: [
-                    for (var i = 0; i < AppNavigation.items.length; i++)
+                    for (final module in modules)
                       _SidebarNavTile(
-                        item: AppNavigation.items[i],
-                        selected: currentIndex == i,
-                        onTap: () => onNavigate(i),
+                        item: module,
+                        selected: selectedModuleId == module.moduleId,
+                        onTap: () => onNavigate(module.moduleId),
                       ),
                   ],
                 ),

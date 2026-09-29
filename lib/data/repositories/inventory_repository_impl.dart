@@ -104,6 +104,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.inventoryCreatePath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       final json = parseOneCJson(response.data);
       _throwIfOneCError(json, 'Ошибка создания инвентаризации');
@@ -131,6 +132,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.inventoryCreatePath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       final json = parseOneCJson(response.data);
       _throwIfOneCError(json, 'Ошибка завершения инвентаризации');

@@ -4,6 +4,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/writeoff_predata.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 
 /// Полноэкранный выбор причины списания с поиском.
 class SelectWriteoffReasonScreen extends StatefulWidget {
@@ -46,8 +47,9 @@ class _SelectWriteoffReasonScreenState
 
     return Scaffold(
       appBar: AppBarWithKeyboard(title: AppStrings.writeoffReason),
-      body: Column(
-        children: [
+      body: DesktopContentConstraint(
+        child: Column(
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
@@ -108,6 +110,7 @@ class _SelectWriteoffReasonScreenState
                   ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -44,19 +44,47 @@ class _TextKeyboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = OnScreenKeyboardLayouts.rowsFor(controller.language);
+    final rows = controller.isSymbolsPage
+        ? OnScreenKeyboardLayouts.symbolRows()
+        : OnScreenKeyboardLayouts.rowsFor(controller.language);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _LanguageSwitcher(controller: controller),
-        const SizedBox(height: 6),
+        if (!controller.isSymbolsPage) ...[
+          _LanguageSwitcher(controller: controller),
+          const SizedBox(height: 6),
+        ],
         for (final row in rows) _KeyRow(keys: row, controller: controller),
         const SizedBox(height: 6),
         Row(
           children: [
+            if (!controller.isSymbolsPage) ...[
+              Expanded(
+                flex: 2,
+                child: _KeyButton(
+                  icon: Icons.keyboard_arrow_up,
+                  selected: controller.isShiftActive,
+                  onPressed: controller.toggleShift,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             Expanded(
-              flex: 5,
+              flex: 2,
+              child: _KeyButton(
+                label: controller.isSymbolsPage
+                    ? AppStrings.onScreenKeyboardLetters
+                    : AppStrings.onScreenKeyboardSymbols,
+                selected: controller.isSymbolsPage,
+                onPressed: controller.isSymbolsPage
+                    ? controller.showLetters
+                    : controller.showSymbols,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 4,
               child: _KeyButton(
                 label: AppStrings.onScreenKeyboardSpace,
                 onPressed: () => controller.insert(' '),
@@ -97,7 +125,7 @@ class _LanguageSwitcher extends StatelessWidget {
         for (var i = 0; i < OnScreenKeyboardLanguage.values.length; i++) ...[
           if (i > 0) const SizedBox(width: 6),
           Expanded(
-            child: _LanguageButton(
+            child: _ToggleKeyButton(
               label: OnScreenKeyboardLanguage.values[i].label,
               selected: controller.language == OnScreenKeyboardLanguage.values[i],
               onPressed: () =>
@@ -110,8 +138,8 @@ class _LanguageSwitcher extends StatelessWidget {
   }
 }
 
-class _LanguageButton extends StatelessWidget {
-  const _LanguageButton({
+class _ToggleKeyButton extends StatelessWidget {
+  const _ToggleKeyButton({
     required this.label,
     required this.selected,
     required this.onPressed,
@@ -218,7 +246,7 @@ class _KeyRow extends StatelessWidget {
             if (i > 0) const SizedBox(width: 6),
             Expanded(
               child: _KeyButton(
-                label: keys[i],
+                label: controller.displayKey(keys[i]),
                 onPressed: () => controller.insert(keys[i]),
               ),
             ),
@@ -233,11 +261,13 @@ class _KeyButton extends StatelessWidget {
   const _KeyButton({
     this.label,
     this.icon,
+    this.selected = false,
     required this.onPressed,
   });
 
   final String? label;
   final IconData? icon;
+  final bool selected;
   final VoidCallback onPressed;
 
   @override
@@ -248,16 +278,19 @@ class _KeyButton extends StatelessWidget {
             label ?? '',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
+                  fontSize: label != null && label!.length > 2 ? 14 : null,
                 ),
           );
 
     return SizedBox(
       height: 44,
       child: Material(
-        color: AppColors.background,
+        color: selected ? AppColors.mintSoft : AppColors.background,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: AppColors.surfaceMuted),
+          side: BorderSide(
+            color: selected ? AppColors.turquoise : AppColors.surfaceMuted,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

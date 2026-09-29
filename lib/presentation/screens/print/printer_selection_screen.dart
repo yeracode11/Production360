@@ -14,6 +14,7 @@ import '../../../domain/repositories/printer_repository.dart';
 import '../../bloc/warehouse/warehouse_cubit.dart';
 import '../../bloc/warehouse/warehouse_state.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import '../../widgets/printer_log_dialog.dart';
 
@@ -269,7 +270,8 @@ class _PrinterSelectionScreenState extends State<PrinterSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBarWithKeyboard(title: AppStrings.printerSelectionTitle),
-      body: BlocListener<WarehouseCubit, WarehouseState>(
+      body: DesktopContentConstraint(
+        child: BlocListener<WarehouseCubit, WarehouseState>(
         listenWhen: (previous, current) {
           if (current is! WarehouseLoaded) return false;
           if (previous is! WarehouseLoaded) return true;
@@ -402,6 +404,7 @@ class _PrinterSelectionScreenState extends State<PrinterSelectionScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }

@@ -115,6 +115,7 @@ class WriteoffRepositoryImpl implements WriteoffRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.stockWriteoffCreatePath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       final json = parseOneCJson(response.data);
       _throwIfOneCError(json, 'Ошибка создания списания');

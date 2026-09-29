@@ -10,6 +10,7 @@ import '../../../domain/entities/stock_writeoff.dart';
 import '../../../domain/repositories/writeoff_repository.dart';
 import '../../../domain/services/document_print_mapper.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/print_document_button.dart';
 
 class WriteoffDetailsScreen extends StatefulWidget {
@@ -90,7 +91,7 @@ class _WriteoffDetailsScreenState extends State<WriteoffDetailsScreen> {
             ),
         ],
       ),
-      body: body,
+      body: DesktopContentConstraint(child: body),
     );
   }
 

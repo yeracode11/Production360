@@ -23,6 +23,21 @@ String? productCodeDisplayLabel(String code) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
+/// Список позиций из «ТекстТовары»: не более [maxLines] строк, остальное «...».
+String formatProductLinesPreview(
+  String text, {
+  int maxLines = 3,
+}) {
+  final lines = text
+      .split(RegExp(r'\r?\n'))
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  if (lines.isEmpty) return '';
+  if (lines.length <= maxLines) return lines.join('\n');
+  return '${lines.take(maxLines).join('\n')}\n...';
+}
+
 final _deliveryServiceNamePattern = RegExp(
   r'^-?\s*доставка',
   caseSensitive: false,

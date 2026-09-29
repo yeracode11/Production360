@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../config/one_c_config.dart';
 import '../../domain/services/force_update_notifier.dart';
@@ -35,12 +36,23 @@ class DioClient {
       );
     }
 
-    _dio.interceptors.add(
-      LogInterceptor(requestBody: true, responseBody: true),
-    );
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(requestBody: true, responseBody: true),
+      );
+    }
   }
 
   late final Dio _dio;
+
+  /// Таймаут POST-создания документов в 1С (проведение может занимать долго).
+  static const documentCreateTimeout = Duration(seconds: 120);
+
+  Options get documentCreateOptions => Options(
+        connectTimeout: documentCreateTimeout,
+        sendTimeout: documentCreateTimeout,
+        receiveTimeout: documentCreateTimeout,
+      );
 
   Dio get instance => _dio;
 

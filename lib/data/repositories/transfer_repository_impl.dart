@@ -115,6 +115,7 @@ class TransferRepositoryImpl implements TransferRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.internalTransferCreatePath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       final json = parseOneCJson(response.data);
       _throwIfOneCError(json, 'Ошибка создания перемещения');

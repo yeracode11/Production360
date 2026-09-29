@@ -34,6 +34,18 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User?> restorePersistedSession() async {
+    final cached = bootstrapPersistedSession();
+    if (cached == null) {
+      return null;
+    }
+    return refreshPersistedSession();
+  }
+
+  @override
+  bool get hasPersistedCredentials => _sessionStorage.readCredentials() != null;
+
+  @override
+  User? bootstrapPersistedSession() {
     final credentials = _sessionStorage.readCredentials();
     if (credentials == null) {
       _currentUser = null;
@@ -42,17 +54,29 @@ class AuthRepositoryImpl implements AuthRepository {
 
     _dioClient.setBasicAuth(credentials.username, credentials.password);
     _currentUser = _sessionStorage.readUserSnapshot();
+    return _currentUser;
+  }
+
+  @override
+  Future<User?> refreshPersistedSession() async {
+    final credentials = _sessionStorage.readCredentials();
+    if (credentials == null) {
+      _currentUser = null;
+      return null;
+    }
+
+    _dioClient.setBasicAuth(credentials.username, credentials.password);
 
     try {
       _currentUser = await _authService.fetchSession();
       await _sessionStorage.saveUserSnapshot(_currentUser!);
-      return _currentUser!;
+      return _currentUser;
     } catch (e) {
       if (_isAuthFailure(e)) {
         await logout();
         return null;
       }
-      return _currentUser;
+      return _currentUser ?? _sessionStorage.readUserSnapshot();
     }
   }
 
@@ -86,8 +110,28 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<List<Warehouse>> fetchWarehousesFromApi() async {
-    await validateSession();
-    return _currentUser!.warehouses;
+    await _ensureAuthHeaders();
+
+    if (_currentUser != null && _currentUser!.warehouses.isNotEmpty) {
+      return _currentUser!.warehouses;
+    }
+
+    try {
+      _currentUser = await _authService.fetchSession();
+      await _sessionStorage.saveUserSnapshot(_currentUser!);
+      return _currentUser!.warehouses;
+    } catch (e) {
+      if (_isAuthFailure(e)) {
+        await logout();
+        throw Exception(AppStrings.invalidCredentials);
+      }
+
+      if (_currentUser != null && _currentUser!.warehouses.isNotEmpty) {
+        return _currentUser!.warehouses;
+      }
+
+      rethrow;
+    }
   }
 
   @override

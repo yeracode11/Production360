@@ -86,13 +86,15 @@ class OrderRepositoryImpl implements OrderRepository {
             ),
           )
           .toList();
-      for (final order in orders) {
-        await DocumentAuthorSupport.cacheDocumentAuthor(
-          documentId: order.id,
-          authorLogin: order.authorLogin,
-          author: order.author,
-        );
-      }
+      await Future.wait(
+        orders.map(
+          (order) => DocumentAuthorSupport.cacheDocumentAuthor(
+            documentId: order.id,
+            authorLogin: order.authorLogin,
+            author: order.author,
+          ),
+        ),
+      );
       if (status != null) {
         return orders.where((o) => o.status == status).toList();
       }
@@ -137,6 +139,7 @@ class OrderRepositoryImpl implements OrderRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.ordersPath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       _throwIfOneCError(parseOneCJson(response.data), 'Ошибка создания заявки');
     } on DioException catch (e) {

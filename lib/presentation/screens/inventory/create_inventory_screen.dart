@@ -22,8 +22,6 @@ import '../../widgets/document_author_row.dart';
 import '../../widgets/document_screen_scaffold.dart';
 import '../../widgets/dismiss_keyboard.dart';
 import '../../widgets/on_screen_keyboard/on_screen_keyboard_field.dart';
-import 'inventory_reconciliation_screen.dart';
-
 class CreateInventoryScreen extends StatefulWidget {
   const CreateInventoryScreen({super.key, required this.warehouse});
 
@@ -175,6 +173,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
     setState(() => _isSaving = true);
 
+    var leaveScreen = false;
     try {
       final result = await sl<InventoryRepository>().createInventory(
         CreateInventoryRequest(
@@ -187,8 +186,10 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
       );
 
       if (!mounted) return;
+      leaveScreen = true;
       FocusScope.of(context).unfocus();
       await sl<InventoryCompletedStorage>().markCompleted(result.id);
+      if (!mounted) return;
       context.read<InventoryCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -197,14 +198,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
           ),
         ),
       );
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => InventoryReconciliationScreen(
-            inventoryId: result.id,
-            openedAfterCreate: true,
-          ),
-        ),
-      );
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +209,7 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
         ),
       );
     } finally {
-      if (mounted) {
+      if (mounted && !leaveScreen) {
         setState(() => _isSaving = false);
       }
     }

@@ -116,6 +116,7 @@ class ProductionRepositoryImpl implements ProductionRepository {
       final response = await _dioClient.instance.post(
         OneCConfig.productionCreatePath,
         data: request.to1CJson(),
+        options: _dioClient.documentCreateOptions,
       );
       final json = parseOneCJson(response.data);
       _throwIfOneCError(json, 'Ошибка создания производства');

@@ -27,6 +27,16 @@ class _OrdersScreenState extends State<OrdersScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final warehouseState = context.read<WarehouseCubit>().state;
+      final ordersState = context.read<OrdersCubit>().state;
+      if (warehouseState is WarehouseLoaded && ordersState is OrdersInitial) {
+        context
+            .read<OrdersCubit>()
+            .loadOrders(warehouseState.selectedWarehouse.id);
+      }
+    });
   }
 
   @override
@@ -39,10 +49,16 @@ class _OrdersScreenState extends State<OrdersScreen>
     final warehouseCubit = context.read<WarehouseCubit>();
     final ordersCubit = context.read<OrdersCubit>();
 
-    await warehouseCubit.refreshFromApi();
     final warehouseState = warehouseCubit.state;
     if (warehouseState is WarehouseLoaded) {
       await ordersCubit.refreshOrders(warehouseState.selectedWarehouse.id);
+      return;
+    }
+
+    await warehouseCubit.refreshFromApi();
+    final refreshedState = warehouseCubit.state;
+    if (refreshedState is WarehouseLoaded) {
+      await ordersCubit.refreshOrders(refreshedState.selectedWarehouse.id);
     }
   }
 

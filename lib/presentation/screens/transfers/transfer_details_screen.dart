@@ -10,6 +10,7 @@ import '../../../domain/entities/internal_transfer.dart';
 import '../../../domain/repositories/transfer_repository.dart';
 import '../../../domain/services/document_print_mapper.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/print_document_button.dart';
 
 class TransferDetailsScreen extends StatefulWidget {
@@ -90,7 +91,7 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
             ),
         ],
       ),
-      body: body,
+      body: DesktopContentConstraint(child: body),
     );
   }
 

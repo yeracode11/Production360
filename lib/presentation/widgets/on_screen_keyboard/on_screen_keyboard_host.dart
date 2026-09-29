@@ -19,17 +19,19 @@ class OnScreenKeyboardHost extends StatelessWidget {
 
     final keyboard = sl<OnScreenKeyboardController>();
 
-    return ListenableBuilder(
-      listenable: keyboard,
-      builder: (context, _) {
-        return Column(
-          children: [
-            Expanded(child: child),
-            if (keyboard.isVisible)
-              OnScreenKeyboardPanel(controller: keyboard),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        Expanded(child: child),
+        ListenableBuilder(
+          listenable: keyboard,
+          builder: (context, _) {
+            if (!keyboard.isVisible) {
+              return const SizedBox.shrink();
+            }
+            return OnScreenKeyboardPanel(controller: keyboard);
+          },
+        ),
+      ],
     );
   }
 }

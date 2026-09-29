@@ -27,6 +27,14 @@ def _parse_parent_id(value: Any) -> uuid.UUID | None:
     return parent_id
 
 
+def _parse_unit_id(value: Any) -> uuid.UUID | None:
+    """1С иногда шлёт пустую единицу измерения нулевым UUID."""
+    unit_id = _parse_uuid(value)
+    if unit_id == EMPTY_PARENT_UUID:
+        return None
+    return unit_id
+
+
 def _is_root_parent(parent_id: uuid.UUID | None) -> bool:
     return parent_id is None or parent_id == EMPTY_PARENT_UUID
 
@@ -256,7 +264,7 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
             "name": str(raw.get("Наименование") or "").strip(),
             "full_name": _empty_to_none(raw.get("НаименованиеПолное")),
             "article": _empty_to_none(raw.get("Артикул")),
-            "unit_id": _parse_uuid(raw.get("ЕдиницаИзмерения")),
+            "unit_id": _parse_unit_id(raw.get("ЕдиницаИзмерения")),
             "product_type": _empty_to_none(raw.get("ТипНоменклатуры")),
             "barcode": _empty_to_none(raw.get("Штрихкод")),
             "comment": _empty_to_none(raw.get("Комментарий")),

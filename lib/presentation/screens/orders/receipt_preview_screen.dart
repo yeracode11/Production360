@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/receipt_preview_item.dart';
 import '../../widgets/receipt_preview_item_row.dart';
 
@@ -28,9 +29,10 @@ class ReceiptPreviewScreen extends StatelessWidget {
               : AppStrings.receiptPreviewTitle,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      body: DesktopContentConstraint(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
@@ -52,6 +54,7 @@ class ReceiptPreviewScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

@@ -11,6 +11,7 @@ import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/order_repository.dart';
 import 'domain/repositories/inventory_repository.dart';
 import 'domain/repositories/production_repository.dart';
+import 'domain/repositories/return_repository.dart';
 import 'domain/repositories/transfer_repository.dart';
 import 'domain/repositories/writeoff_repository.dart';
 import 'domain/services/force_update_notifier.dart';
@@ -20,6 +21,7 @@ import 'presentation/bloc/auth/auth_state.dart';
 import 'presentation/bloc/inventory/inventory_cubit.dart';
 import 'presentation/bloc/production/production_cubit.dart';
 import 'presentation/bloc/orders/orders_cubit.dart';
+import 'presentation/bloc/returns/returns_cubit.dart';
 import 'presentation/bloc/transfers/transfers_cubit.dart';
 import 'presentation/bloc/writeoffs/writeoffs_cubit.dart';
 import 'presentation/bloc/update/update_cubit.dart';
@@ -69,6 +71,12 @@ class ConfectioneryApp extends StatelessWidget {
         BlocProvider(
           create: (context) => WriteoffsCubit(
             writeoffRepository: sl<WriteoffRepository>(),
+            warehouseCubit: context.read<WarehouseCubit>(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => ReturnsCubit(
+            returnRepository: sl<ReturnRepository>(),
             warehouseCubit: context.read<WarehouseCubit>(),
           ),
         ),
@@ -144,6 +152,7 @@ class _AppRootState extends State<_AppRoot> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<UpdateCubit>().recheckVersion();
+      context.read<AuthBloc>().add(const AuthSessionRefreshRequested());
     }
   }
 
@@ -173,7 +182,7 @@ class _AuthGate extends StatelessWidget {
           return const MainShell();
         }
 
-        if (state is AuthInitial) {
+        if (state is AuthInitial || state is AuthLoading) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );

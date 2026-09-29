@@ -1,0 +1,4 @@
+enum OnScreenKeyboardPage {
+  letters,
+  symbols,
+}

@@ -3,6 +3,8 @@ import 'package:flutter/scheduler.dart';
 
 import 'on_screen_keyboard_registry.dart';
 import 'on_screen_keyboard_language.dart';
+import 'on_screen_keyboard_layouts.dart';
+import 'on_screen_keyboard_page.dart';
 import 'on_screen_keyboard_type.dart';
 
 class OnScreenKeyboardController extends ChangeNotifier {
@@ -10,11 +12,16 @@ class OnScreenKeyboardController extends ChangeNotifier {
   TextEditingController? _target;
   OnScreenKeyboardType _inputType = OnScreenKeyboardType.text;
   OnScreenKeyboardLanguage _language = OnScreenKeyboardLanguage.russian;
+  OnScreenKeyboardPage _page = OnScreenKeyboardPage.letters;
+  bool _shiftActive = false;
 
   bool get isVisible => _visible;
   TextEditingController? get target => _target;
   OnScreenKeyboardType get inputType => _inputType;
   OnScreenKeyboardLanguage get language => _language;
+  OnScreenKeyboardPage get page => _page;
+  bool get isSymbolsPage => _page == OnScreenKeyboardPage.symbols;
+  bool get isShiftActive => _shiftActive;
 
   ValueChanged<String>? _targetOnChanged;
 
@@ -78,13 +85,33 @@ class OnScreenKeyboardController extends ChangeNotifier {
   }
 
   void _ensureSelection(TextEditingController controller) {
-    if (!controller.selection.isValid ||
-        controller.selection.start < 0 ||
-        controller.selection.end < 0) {
-      controller.selection = TextSelection.collapsed(
-        offset: controller.text.length,
-      );
+    final text = controller.text;
+    final selection = controller.selection;
+
+    if (!selection.isValid ||
+        selection.start < 0 ||
+        selection.end < 0) {
+      controller.selection = TextSelection.collapsed(offset: text.length);
+      return;
     }
+
+    // Desktop иногда выделяет весь текст при потере/возврате фокуса.
+    if (!selection.isCollapsed &&
+        text.isNotEmpty &&
+        selection.start == 0 &&
+        selection.end == text.length) {
+      controller.selection = TextSelection.collapsed(offset: text.length);
+    }
+  }
+
+  void _restoreTargetSelection() {
+    final controller = _target;
+    if (controller == null) {
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _ensureSelection(controller);
+    });
   }
 
   void _notifyTargetChanged() {
@@ -105,17 +132,30 @@ class OnScreenKeyboardController extends ChangeNotifier {
       return;
     }
 
+    _ensureSelection(controller);
+
+    var output = text;
+    if (_shiftActive && OnScreenKeyboardLayouts.isShiftable(text)) {
+      output = text.toUpperCase();
+      _shiftActive = false;
+    }
+
     final value = controller.value;
     final selection = value.selection;
     final start = selection.start >= 0 ? selection.start : value.text.length;
     final end = selection.end >= 0 ? selection.end : value.text.length;
-    final newText = value.text.replaceRange(start, end, text);
+    final newText = value.text.replaceRange(start, end, output);
     controller.value = value.copyWith(
       text: newText,
-      selection: TextSelection.collapsed(offset: start + text.length),
+      selection: TextSelection.collapsed(offset: start + output.length),
       composing: TextRange.empty,
     );
     _notifyTargetChanged();
+
+    if (!_shiftActive && text != output) {
+      notifyListeners();
+      _restoreTargetSelection();
+    }
   }
 
   void backspace() {
@@ -127,6 +167,8 @@ class OnScreenKeyboardController extends ChangeNotifier {
     if (controller == null) {
       return;
     }
+
+    _ensureSelection(controller);
 
     final value = controller.value;
     final selection = value.selection;
@@ -168,6 +210,35 @@ class OnScreenKeyboardController extends ChangeNotifier {
       return;
     }
     _language = language;
+    _shiftActive = false;
     notifyListeners();
+    _restoreTargetSelection();
   }
+
+  void setPage(OnScreenKeyboardPage page) {
+    if (_page == page) {
+      return;
+    }
+    _page = page;
+    _shiftActive = false;
+    notifyListeners();
+    _restoreTargetSelection();
+  }
+
+  void toggleShift() {
+    _shiftActive = !_shiftActive;
+    notifyListeners();
+    _restoreTargetSelection();
+  }
+
+  String displayKey(String key) {
+    if (!_shiftActive || !OnScreenKeyboardLayouts.isShiftable(key)) {
+      return key;
+    }
+    return key.toUpperCase();
+  }
+
+  void showSymbols() => setPage(OnScreenKeyboardPage.symbols);
+
+  void showLetters() => setPage(OnScreenKeyboardPage.letters);
 }

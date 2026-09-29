@@ -8,6 +8,7 @@ import '../../../domain/entities/warehouse.dart';
 import '../../../domain/repositories/order_repository.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
 import '../../widgets/accompanying_product_label.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import 'create_order_screen.dart';
 
 /// Loads order types from 1C GET /mobile/zayavka/types.
@@ -68,13 +69,15 @@ class _SelectOrderTypeScreenState extends State<SelectOrderTypeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBarWithKeyboard(title: AppStrings.createOrderTitle),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _HeaderSection(warehouseName: widget.warehouse.name),
-            Expanded(child: _buildBody()),
-          ],
+      body: DesktopContentConstraint(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HeaderSection(warehouseName: widget.warehouse.name),
+              Expanded(child: _buildBody()),
+            ],
+          ),
         ),
       ),
     );

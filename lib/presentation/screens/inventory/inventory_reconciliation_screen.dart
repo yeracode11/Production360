@@ -12,6 +12,7 @@ import '../../../domain/entities/inventory_document.dart';
 import '../../../domain/repositories/inventory_repository.dart';
 import '../../bloc/inventory/inventory_cubit.dart';
 import '../../widgets/app_bar_with_keyboard.dart';
+import '../../widgets/desktop_content_constraint.dart';
 import '../../widgets/inventory_mismatch_ui.dart';
 import '../../widgets/inventory_reconciliation_dialog.dart';
 
@@ -65,17 +66,17 @@ class _InventoryReconciliationScreenState
         return;
       }
 
+      if (widget.openedAfterCreate) {
+        _document = document;
+        await _finishAndExit();
+        return;
+      }
+
       setState(() {
         _document = document;
         _lines = _buildLines(document);
         _isLoading = false;
       });
-
-      if (widget.openedAfterCreate) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _finishAndExit();
-        });
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -116,8 +117,9 @@ class _InventoryReconciliationScreenState
       appBar: AppBarWithKeyboard(
         title: AppStrings.inventoryReconciliationTitle,
       ),
-      body: Stack(
-        children: [
+      body: DesktopContentConstraint(
+        child: Stack(
+          children: [
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _loadError != null
@@ -131,6 +133,7 @@ class _InventoryReconciliationScreenState
               ),
             ),
         ],
+        ),
       ),
     );
   }
