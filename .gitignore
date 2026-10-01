@@ -54,3 +54,6 @@ backend/**/__pycache__/
 # Secrets
 android/key.properties
 **/*.jks
+
+# Windows installer (download via download-vcredist.ps1)
+windows/installer/redist/vc_redist.x64.exe

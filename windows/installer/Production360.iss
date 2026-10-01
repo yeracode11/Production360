@@ -1,16 +1,14 @@
-; Production360 — Inno Setup installer
+; Production360 — Inno Setup installer (includes Visual C++ 2015–2022 x64)
 ;
-; Prerequisites:
-;   1. flutter build windows --release
-;   2. vc_redist.x64.exe in redist\ (download via build-installer.ps1)
-;   3. Inno Setup 6: https://jrsoftware.org/isdl.php
+; Build on Windows:
+;   cd mobile\windows\installer
+;   .\build-installer.ps1
 ;
-; Compile:
-;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" Production360.iss
-;   or run: .\build-installer.ps1
+; Output:
+;   mobile\build\windows\installer\Production360-Setup-{version}.exe
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.4"
+  #define MyAppVersion "1.0.5"
 #endif
 
 #define MyAppName "Production360"
@@ -18,6 +16,7 @@
 #define MyAppExeName "Production360.exe"
 #define MyAppBuildDir "..\..\build\windows\x64\runner\Release"
 #define MyAppOutputDir "..\..\build\windows\installer"
+#define VcRedistSource "redist\vc_redist.x64.exe"
 
 [Setup]
 AppId={{E4A91C2D-8B3F-4A6E-9C1D-EF1234567890}}
@@ -44,16 +43,66 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 Source: "{#MyAppBuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "redist\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
+Source: "{#VcRedistSource}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Visual C++ Runtime..."; Flags: waituntilterminated; Check: FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe'))
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function VcRedistExitOk(ResultCode: Integer): Boolean;
+begin
+  { 0 = OK, 1638 = newer runtime already installed, 3010 = OK, reboot suggested }
+  Result := (ResultCode = 0) or (ResultCode = 1638) or (ResultCode = 3010);
+end;
+
+procedure InstallVCRedist;
+var
+  ResultCode: Integer;
+  VcPath: String;
+begin
+  VcPath := ExpandConstant('{tmp}\vc_redist.x64.exe');
+  if not FileExists(VcPath) then
+  begin
+    MsgBox(
+      'В установщик не включён vc_redist.x64.exe.' + #13#10 +
+      'Соберите инсталлер командой: build-installer.ps1',
+      mbError, MB_OK);
+    Abort;
+  end;
+
+  WizardForm.StatusLabel.Caption := 'Установка Visual C++ Runtime (x64)...';
+  try
+    WizardForm.ProgressBar.Style := npbstMarquee;
+  except
+  end;
+
+  if not Exec(VcPath, '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    MsgBox('Не удалось запустить установку Visual C++ Runtime.', mbError, MB_OK);
+    Abort;
+  end;
+
+  if not VcRedistExitOk(ResultCode) then
+  begin
+    MsgBox(
+      'Visual C++ Runtime не установлен (код ' + IntToStr(ResultCode) + ').' + #13#10 +
+      'Без него приложение не запустится (ошибки VCRUNTIME140 / MSVCP140).',
+      mbError, MB_OK);
+    Abort;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    InstallVCRedist;
+end;
+
