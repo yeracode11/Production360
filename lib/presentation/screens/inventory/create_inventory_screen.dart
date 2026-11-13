@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/storage/inventory_completed_storage.dart';
+import '../../../core/storage/inventory_draft_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/utils/quantity_input.dart';
@@ -39,11 +40,124 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
   bool _isLoadingPredata = true;
   String? _predataError;
   bool _isSaving = false;
+  bool _isLeaving = false;
+
+  /// Снимок состояния на момент последнего сохранения/восстановления черновика.
+  String _savedSignature = '';
+
+  InventoryDraftStorage get _draftStorage => sl<InventoryDraftStorage>();
 
   @override
   void initState() {
     super.initState();
+    _restoreDraft();
+    _savedSignature = _currentSignature();
     _loadPredata();
+  }
+
+  void _restoreDraft() {
+    final draft = _draftStorage.read(widget.warehouse.id);
+    if (draft == null) return;
+    _commentController.text = draft.comment;
+    for (final item in draft.items) {
+      final row = _InventoryLineRow(product: item.product);
+      row.quantityController.text = item.quantityText;
+      _lines.add(row);
+    }
+  }
+
+  InventoryDraft _buildDraft() {
+    return InventoryDraft(
+      warehouseId: widget.warehouse.id,
+      comment: _commentController.text,
+      savedAt: DateTime.now(),
+      items: [
+        for (final row in _lines)
+          InventoryDraftItem(
+            product: row.product,
+            quantityText: row.quantityController.text.trim(),
+          ),
+      ],
+    );
+  }
+
+  String _currentSignature() {
+    final buffer = StringBuffer(_commentController.text.trim());
+    for (final row in _lines) {
+      buffer
+        ..write('|')
+        ..write(row.product.id)
+        ..write('=')
+        ..write(row.quantityController.text.trim());
+    }
+    return buffer.toString();
+  }
+
+  bool get _hasUnsavedChanges =>
+      !_isLeaving && _currentSignature() != _savedSignature;
+
+  Future<void> _saveDraft({bool showMessage = true}) async {
+    final draft = _buildDraft();
+    if (draft.isEmpty) {
+      await _draftStorage.delete(widget.warehouse.id);
+    } else {
+      await _draftStorage.save(draft);
+    }
+    _savedSignature = _currentSignature();
+    if (!mounted || !showMessage) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(AppStrings.inventoryDraftSaved)),
+    );
+  }
+
+  Future<void> _saveDraftAndLeave() async {
+    FocusScope.of(context).unfocus();
+    await _saveDraft();
+    if (!mounted) return;
+    _isLeaving = true;
+    Navigator.of(context).pop(false);
+  }
+
+  /// Выход с экрана с несохранёнными изменениями: спросить про черновик.
+  Future<void> _handleLeaveRequest() async {
+    final choice = await showDialog<_LeaveChoice>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.inventoryDraftLeaveTitle),
+        content: const Text(AppStrings.inventoryDraftLeaveMessage),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_LeaveChoice.cancel),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_LeaveChoice.discard),
+            child: Text(
+              AppStrings.inventoryDraftDiscard,
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_LeaveChoice.save),
+            child: const Text(AppStrings.saveInventoryDraft),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case _LeaveChoice.save:
+        await _saveDraftAndLeave();
+      case _LeaveChoice.discard:
+        // «Не сохранять» — предыдущий сохранённый черновик (если был) остаётся.
+        setState(() => _isLeaving = true);
+        Navigator.of(context).pop(false);
+      case _LeaveChoice.cancel:
+      case null:
+        break;
+    }
   }
 
   Future<void> _loadPredata() async {
@@ -187,8 +301,10 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
 
       if (!mounted) return;
       leaveScreen = true;
+      _isLeaving = true;
       FocusScope.of(context).unfocus();
       await sl<InventoryCompletedStorage>().markCompleted(result.id);
+      await _draftStorage.delete(widget.warehouse.id);
       if (!mounted) return;
       context.read<InventoryCubit>().refreshCurrentWarehouse();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,9 +366,30 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
       );
     }
 
-    return DocumentScreenScaffold(
-      title: AppStrings.createInventoryTitle,
-      body: _buildForm(),
+    return PopScope(
+      // Ввод количества не вызывает rebuild, поэтому решаем в колбэке.
+      // Navigator.pop() из кода PopScope не блокирует.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _isSaving) return;
+        if (!_hasUnsavedChanges) {
+          _isLeaving = true;
+          Navigator.of(context).pop(false);
+          return;
+        }
+        _handleLeaveRequest();
+      },
+      child: DocumentScreenScaffold(
+        title: AppStrings.createInventoryTitle,
+        actions: [
+          IconButton(
+            tooltip: AppStrings.saveInventoryDraft,
+            icon: const Icon(Icons.bookmark_add_outlined),
+            onPressed: _isSaving ? null : _saveDraftAndLeave,
+          ),
+        ],
+        body: _buildForm(),
+      ),
     );
   }
 
@@ -360,19 +497,71 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _submit,
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                height: 48,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton.icon(
+                        onPressed: _isSaving ? null : _saveDraftAndLeave,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.turquoiseDark,
+                          side: const BorderSide(
+                            color: AppColors.turquoise,
+                            width: 1.2,
                           ),
-                        )
-                      : const Text(AppStrings.createInventory),
+                          backgroundColor:
+                              AppColors.mintSoft.withValues(alpha: 0.35),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            AppStrings.saveInventoryDraftShort,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 3,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  AppStrings.createInventory,
+                                  maxLines: 1,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -382,6 +571,8 @@ class _CreateInventoryScreenState extends State<CreateInventoryScreen> {
     );
   }
 }
+
+enum _LeaveChoice { save, discard, cancel }
 
 class _InventoryLineRow {
   _InventoryLineRow({required this.product});

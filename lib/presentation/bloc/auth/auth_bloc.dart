@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/di/injection.dart';
+import '../../../core/storage/inventory_draft_storage.dart';
 import '../../../core/utils/exception_message.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import 'auth_event.dart';
@@ -80,6 +82,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogout(AuthLogoutRequested event, Emitter<AuthState> emit) async {
     await _authRepository.logout();
+    // Черновики инвентаризации не должны переживать выход из аккаунта.
+    if (sl.isRegistered<InventoryDraftStorage>()) {
+      await sl<InventoryDraftStorage>().clearAll();
+    }
     emit(const AuthUnauthenticated());
   }
 }

@@ -188,6 +188,23 @@ abstract final class AppStrings {
   static String inventoryReconciliationMismatchHint(int count) =>
       'Расхождений: $count';
   static const String inventoryMismatchBadge = 'Расхождение';
+  static const String inventoryDraft = 'Черновик инвентаризации';
+  static const String saveInventoryDraft = 'Сохранить черновик';
+  static const String saveInventoryDraftShort = 'В черновик';
+  static const String inventoryDraftSaved =
+      'Черновик сохранён. Он удалится при выходе из аккаунта';
+  static const String inventoryDraftContinue = 'Продолжить';
+  static const String inventoryDraftDelete = 'Удалить черновик';
+  static const String confirmDeleteInventoryDraft =
+      'Удалить черновик инвентаризации?';
+  static const String inventoryDraftLeaveTitle = 'Сохранить черновик?';
+  static const String inventoryDraftLeaveMessage =
+      'Инвентаризация не завершена. Сохранить её как черновик, чтобы продолжить позже?';
+  static const String inventoryDraftDiscard = 'Не сохранять';
+  static const String inventoryDraftLogoutHint =
+      'Черновик удалится при выходе из аккаунта';
+  static String inventoryDraftSummary(int count, String savedAt) =>
+      'Позиций: $count · сохранён $savedAt';
   static const String accountingQuantity = 'По учёту';
   static const String actualQuantity = 'Факт';
   static const String quantityDifference = 'Разница';

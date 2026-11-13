@@ -10,6 +10,7 @@ import '../../bloc/warehouse/warehouse_cubit.dart';
 import '../../bloc/warehouse/warehouse_state.dart';
 import '../../widgets/completed_week_filter.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/inventory_draft_banner.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -90,6 +91,9 @@ class InventoryScreen extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  InventoryDraftBanner(
+                    warehouse: warehouseState.selectedWarehouse,
+                  ),
                   CompletedWeekFilter(
                     weekStart: week.start,
                     weekEnd: week.end,

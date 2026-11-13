@@ -240,4 +240,4 @@ python scripts/init_db.py
 | Метод | Путь |
 |-------|------|
 | GET | `/health` |
-| GET | `/nomenclature/search?q=банан` | Поиск: не удалённые, не группы, только `Запас`, `q_active` |
+| GET | `/nomenclature/search?q=банан` | Поиск: не удалённые, не группы, только `Запас`, `show_in_mobile_app` или `q_active` |

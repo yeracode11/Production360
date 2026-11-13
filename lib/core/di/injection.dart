@@ -30,6 +30,7 @@ import '../network/dio_client.dart';
 import '../storage/auth_session_storage.dart';
 import '../storage/document_author_storage.dart';
 import '../storage/inventory_completed_storage.dart';
+import '../storage/inventory_draft_storage.dart';
 import '../storage/printer_config_storage.dart';
 import '../storage/selected_warehouse_storage.dart';
 
@@ -51,6 +52,9 @@ Future<void> configureDependencies() async {
 
   final inventoryCompletedStorage = await InventoryCompletedStorage.create();
   sl.registerSingleton<InventoryCompletedStorage>(inventoryCompletedStorage);
+
+  final inventoryDraftStorage = await InventoryDraftStorage.create();
+  sl.registerSingleton<InventoryDraftStorage>(inventoryDraftStorage);
 
   sl.registerLazySingleton<AppVersionProvider>(() => AppVersionProvider());
   sl.registerLazySingleton<ForceUpdateNotifier>(

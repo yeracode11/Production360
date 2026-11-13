@@ -118,6 +118,16 @@ async def backfill_organization_ids(session: AsyncSession) -> int:
     return updated
 
 
+def _mobile_product_filter():
+    """Товар доступен для мобильного приложения:
+    по официальному флагу show_in_mobile_app (1С) или legacy комментарию q_active.
+    """
+    return or_(
+        Product.show_in_mobile_app.is_(True),
+        Product.comment == ACTIVE_PRODUCT_COMMENT,
+    )
+
+
 async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
     """Пересчитать кэш групп с мобильной номенклатурой (вызывается после sync)."""
     await session.execute(delete(CatalogVisibleGroup))
@@ -137,9 +147,8 @@ async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
         select(Product.parent_id, Product.organization_ids).where(
             Product.is_deleted.is_(False),
             Product.is_group.is_(False),
-            Product.show_in_mobile_app.is_(True),
-            Product.comment == ACTIVE_PRODUCT_COMMENT,
             Product.product_type == STOCK_PRODUCT_TYPE,
+            _mobile_product_filter(),
         )
     )
 
@@ -440,12 +449,10 @@ async def list_products(
         elif parent_id is not None:
             stmt = stmt.where(Product.parent_id == parent_id)
 
-        if active_only:
-            stmt = stmt.where(Product.comment == ACTIVE_PRODUCT_COMMENT)
+        if active_only or mobile_only:
+            stmt = stmt.where(_mobile_product_filter())
         if stock_only:
             stmt = stmt.where(Product.product_type == STOCK_PRODUCT_TYPE)
-        if mobile_only:
-            stmt = stmt.where(Product.show_in_mobile_app.is_(True))
         if org_filter is not None:
             stmt = stmt.where(org_filter)
 
@@ -469,6 +476,13 @@ async def list_products(
 def product_to_out(product: Product) -> dict[str, Any]:
     unit_short = product.unit.short_name if product.unit else None
     usage_places = product.usage_places if isinstance(product.usage_places, list) else []
+    is_active = (
+        not product.is_deleted
+        and (
+            product.comment == ACTIVE_PRODUCT_COMMENT
+            or bool(product.show_in_mobile_app)
+        )
+    )
     return {
         "id": product.id,
         "name": product.name,
@@ -479,7 +493,7 @@ def product_to_out(product: Product) -> dict[str, Any]:
         "is_group": product.is_group,
         "parentId": str(product.parent_id) if product.parent_id else None,
         "is_deleted": product.is_deleted,
-        "is_active": product.comment == ACTIVE_PRODUCT_COMMENT and not product.is_deleted,
+        "is_active": is_active,
         "product_type": product.product_type,
         "barcode": product.barcode,
         "showInMobileApp": product.show_in_mobile_app,
