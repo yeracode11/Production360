@@ -29,7 +29,7 @@ API_BEARER_TOKEN=ваш-длинный-секрет
 
 Сгенерировать: `openssl rand -hex 32`
 
-Тот же токен — в мобилке `lib/core/config/catalog_config.dart` → `bearerToken`.
+Тот же токен — в мобилке `lib/core/config/catalog_config.dart` → `bearerToken`. Для 1С — отдельный `SYNC_BEARER_TOKEN`, см. «Два токена» ниже.
 
 `localhost` в `.env` — **только внутри сервера** (FastAPI подключается к Postgres в docker). Снаружи его не используют.
 
@@ -206,6 +206,48 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" \
 #    в deploy/nginx-p360.conf есть proxy_set_header Authorization $http_authorization;
 nginx -t && systemctl reload nginx
 ```
+
+### Два токена: 1С и мобилка
+
+| Переменная | Кто использует | Доступ |
+|---|---|---|
+| `SYNC_BEARER_TOKEN` | только 1С | `/sync/*` + чтение |
+| `API_BEARER_TOKEN` | мобилка (зашит в приложение) | только чтение, как только задан `SYNC_BEARER_TOKEN` |
+| `MOBILE_BEARER_TOKEN` | необязательно, новый токен мобилки | только чтение |
+
+Пока `SYNC_BEARER_TOKEN` пуст, всё работает как раньше (синк принимает `API_BEARER_TOKEN`).
+Мобильный токен вытаскивается из APK, поэтому он не должен давать права на запись.
+
+Переключение без простоя:
+
+```bash
+# 1. На сервере: новый токен 1С + переходный режим (принимаются оба токена)
+TOKEN_1C=$(openssl rand -hex 32); echo "$TOKEN_1C"
+cat >> .env <<ENV
+SYNC_BEARER_TOKEN=$TOKEN_1C
+SYNC_ACCEPT_LEGACY_TOKEN=true
+ENV
+systemctl restart production360-api
+
+# 2. В 1С заменить токен в обмене на $TOKEN_1C, проверить выгрузку.
+
+# 3. Выключить переходный режим: старый токен больше не пишет в /sync
+sed -i 's/^SYNC_ACCEPT_LEGACY_TOKEN=.*/SYNC_ACCEPT_LEGACY_TOKEN=false/' .env
+systemctl restart production360-api
+
+# Проверка: старым токеном синк → 403
+curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Authorization: Bearer $(grep '^API_BEARER_TOKEN=' .env | cut -d= -f2-)" \
+  -H 'Content-Type: application/json' -d '{"dataType":"edinicaIzm","data":[]}' http://127.0.0.1:8000/sync/units
+```
+
+Мобилку менять не нужно. Для будущей ротации токена мобилки: задать `MOBILE_BEARER_TOKEN` на сервере и собрать приложение с `--dart-define=CATALOG_BEARER_TOKEN=...`.
+
+### Кэш групп после синка
+
+`POST /sync/products` больше не пересчитывает кэш групп (`catalog_visible_groups`) на каждую пачку.
+Пересчёт идёт один раз в фоне через `CATALOG_REBUILD_DEBOUNCE_SECONDS` (по умолчанию 5 с) после последней пачки.
+Новые группы появляются в мобилке через несколько секунд после конца обмена.
+Сразу пересчитать: `POST /sync/rebuild` (токен 1С). `CATALOG_REBUILD_DEBOUNCE_SECONDS=0` возвращает старое поведение.
 
 Формат `.env` — **без кавычек** и пробелов вокруг `=`:
 

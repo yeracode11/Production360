@@ -10,6 +10,7 @@ from app.config import settings
 from app.database import engine
 from app.models import CatalogVisibleGroup, Product, Unit  # noqa: F401
 from app.models.base import Base
+from app.services.catalog_rebuild import flush_catalog_rebuild
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,24 @@ async def lifespan(_: FastAPI):
         logger.warning("API_BEARER_TOKEN is empty — protected routes return 503")
     else:
         logger.info("API bearer auth enabled (token length=%d)", token_len)
+    if settings.sync_bearer_token:
+        logger.info(
+            "SYNC_BEARER_TOKEN set (length=%d): /sync/* %s",
+            len(settings.sync_bearer_token),
+            "also accepts API_BEARER_TOKEN (transition mode)"
+            if settings.sync_accept_legacy_token
+            else "rejects API_BEARER_TOKEN",
+        )
+    else:
+        logger.warning(
+            "SYNC_BEARER_TOKEN is empty — /sync/* accepts API_BEARER_TOKEN "
+            "(the token shipped in the mobile app). Set SYNC_BEARER_TOKEN."
+        )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    await flush_catalog_rebuild()
     await engine.dispose()
 
 
