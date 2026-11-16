@@ -56,6 +56,10 @@ class ProductionRepositoryImpl implements ProductionRepository {
           author: document.author,
         );
       }
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: productions.map((doc) => doc.id),
+        loadDetails: getProductionById,
+      );
       return productions;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));

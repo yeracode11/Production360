@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/one_c_author.dart';
+
 /// Локальный кэш логина автора документа (если 1С не вернула «Автор»).
 class DocumentAuthorStorage {
   DocumentAuthorStorage._({SharedPreferences? prefs}) : _prefs = prefs;
@@ -27,6 +29,7 @@ class DocumentAuthorStorage {
   }) async {
     final value = login.trim();
     if (documentId.isEmpty || value.isEmpty) return;
+    if (OneCAuthorFields.isServiceAccount(value)) return;
 
     final key = '$_keyPrefix$documentId';
     if (_prefs != null) {
@@ -39,9 +42,11 @@ class DocumentAuthorStorage {
   String? read(String documentId) {
     if (documentId.isEmpty) return null;
 
-    if (_prefs != null) {
-      return _prefs.getString('$_keyPrefix$documentId');
-    }
-    return _memory[documentId];
+    final value = _prefs != null
+        ? _prefs.getString('$_keyPrefix$documentId')
+        : _memory[documentId];
+    // Старые версии могли закэшировать служебного пользователя 1С.
+    if (value == null || OneCAuthorFields.isServiceAccount(value)) return null;
+    return value;
   }
 }

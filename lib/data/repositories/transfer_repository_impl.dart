@@ -55,6 +55,10 @@ class TransferRepositoryImpl implements TransferRepository {
           author: transfer.author,
         );
       }
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: transfers.map((doc) => doc.id),
+        loadDetails: getTransferById,
+      );
       return transfers;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));

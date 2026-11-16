@@ -180,6 +180,9 @@ class DocumentAuthorPreviewLine extends StatelessWidget {
 }
 
 /// Строка «Автор» в карточке документа в списке.
+///
+/// Текущий пользователь здесь не подставляется: в списке есть чужие документы,
+/// и без данных от 1С или локального кэша честнее показать «—».
 class DocumentCardAuthorRow extends StatelessWidget {
   const DocumentCardAuthorRow({
     super.key,
@@ -194,34 +197,28 @@ class DocumentCardAuthorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final login = DocumentAuthorSupport.resolveDisplayLogin(
-          documentId: documentId,
-          authorLogin: authorLogin,
-          author: author,
-          currentUserLogin:
-              state is AuthAuthenticated ? state.user.username : null,
-        );
+    final login = DocumentAuthorSupport.resolveLogin(
+      documentId: documentId,
+      authorLogin: authorLogin,
+      author: author,
+    );
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${AppStrings.author}: ',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.deepBrownLight,
-                  ),
-            ),
-            Expanded(
-              child: Text(
-                login ?? '—',
-                style: Theme.of(context).textTheme.bodyMedium,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${AppStrings.author}: ',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.deepBrownLight,
               ),
-            ),
-          ],
-        );
-      },
+        ),
+        Expanded(
+          child: Text(
+            login ?? '—',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
     );
   }
 }
