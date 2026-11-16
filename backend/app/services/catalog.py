@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import Any
 
@@ -128,9 +129,48 @@ def _mobile_product_filter():
     )
 
 
+# Ключ pg_advisory_xact_lock для пересчёта кэша групп (произвольная константа).
+CATALOG_REBUILD_LOCK_KEY = 360_001
+
+
+def _compute_visible_group_entries(
+    group_rows: list[tuple[uuid.UUID, uuid.UUID | None]],
+    product_rows: list[tuple[uuid.UUID | None, list[str] | None]],
+) -> set[tuple[str, uuid.UUID | None, uuid.UUID]]:
+    """Чистое вычисление (без БД) — выполняется в отдельном потоке,
+    чтобы не блокировать event loop на больших каталогах."""
+    parent_by_group: dict[uuid.UUID, uuid.UUID | None] = {
+        group_id: _normalize_parent_id(parent_id) for group_id, parent_id in group_rows
+    }
+
+    entries: set[tuple[str, uuid.UUID | None, uuid.UUID]] = set()
+    for parent_id, organization_ids in product_rows:
+        org_keys = _visible_group_org_keys(organization_ids)
+        if not org_keys:
+            continue
+
+        group_id = _normalize_parent_id(parent_id)
+        seen: set[uuid.UUID] = set()
+        while group_id is not None and group_id in parent_by_group:
+            if group_id in seen:  # защита от цикла в иерархии из 1С
+                break
+            seen.add(group_id)
+            group_parent = parent_by_group[group_id]
+            for org_key in org_keys:
+                entries.add((org_key, group_parent, group_id))
+            group_id = group_parent
+    return entries
+
+
 async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
-    """Пересчитать кэш групп с мобильной номенклатурой (вызывается после sync)."""
-    await session.execute(delete(CatalogVisibleGroup))
+    """Пересчитать кэш групп с мобильной номенклатурой (вызывается после sync).
+
+    Одновременные пересчёты (несколько синков, несколько воркеров)
+    выполняются по очереди за счёт advisory-lock в транзакции.
+    """
+    await session.execute(
+        select(func.pg_advisory_xact_lock(CATALOG_REBUILD_LOCK_KEY))
+    )
 
     group_rows = await session.execute(
         select(Product.id, Product.parent_id).where(
@@ -138,10 +178,6 @@ async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
             Product.is_deleted.is_(False),
         )
     )
-    parent_by_group: dict[uuid.UUID, uuid.UUID | None] = {
-        group_id: _normalize_parent_id(parent_id)
-        for group_id, parent_id in group_rows.all()
-    }
 
     product_rows = await session.execute(
         select(Product.parent_id, Product.organization_ids).where(
@@ -152,31 +188,24 @@ async def rebuild_catalog_visible_groups(session: AsyncSession) -> int:
         )
     )
 
-    entries: set[tuple[str, uuid.UUID | None, uuid.UUID]] = set()
-    for parent_id, organization_ids in product_rows.all():
-        org_keys = _visible_group_org_keys(organization_ids)
-        if not org_keys:
-            continue
+    entries = await asyncio.to_thread(
+        _compute_visible_group_entries,
+        [tuple(row) for row in group_rows.all()],
+        [tuple(row) for row in product_rows.all()],
+    )
 
-        group_id = _normalize_parent_id(parent_id)
-        while group_id is not None and group_id in parent_by_group:
-            group_parent = parent_by_group[group_id]
-            for org_key in org_keys:
-                entries.add((org_key, group_parent, group_id))
-            group_id = group_parent
-
+    await session.execute(delete(CatalogVisibleGroup))
     if entries:
-        await session.execute(
-            insert(CatalogVisibleGroup),
-            [
-                {
-                    "organization_key": org_key,
-                    "parent_id": group_parent,
-                    "group_id": group_id,
-                }
-                for org_key, group_parent, group_id in entries
-            ],
-        )
+        rows = [
+            {
+                "organization_key": org_key,
+                "parent_id": group_parent,
+                "group_id": group_id,
+            }
+            for org_key, group_parent, group_id in entries
+        ]
+        for start in range(0, len(rows), 5000):
+            await session.execute(insert(CatalogVisibleGroup), rows[start : start + 5000])
 
     await session.commit()
     return len(entries)
@@ -255,7 +284,17 @@ def _parse_usage_places(raw: Any) -> list[dict[str, str]]:
     return places
 
 
-async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> int:
+async def sync_products(
+    session: AsyncSession,
+    items: list[dict[str, Any]],
+    *,
+    rebuild_groups: bool = True,
+) -> int:
+    """Upsert номенклатуры.
+
+    ``rebuild_groups=False`` — не пересчитывать кэш групп здесь
+    (API ставит пересчёт в фон, см. ``app.services.catalog_rebuild``).
+    """
     upserted = 0
     for raw in items:
         product_id = _parse_uuid(raw.get("Ссылка"))
@@ -320,7 +359,8 @@ async def sync_products(session: AsyncSession, items: list[dict[str, Any]]) -> i
         upserted += 1
 
     await session.commit()
-    await rebuild_catalog_visible_groups(session)
+    if rebuild_groups:
+        await rebuild_catalog_visible_groups(session)
     return upserted
 
 

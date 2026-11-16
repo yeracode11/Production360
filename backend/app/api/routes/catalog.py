@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import require_api_token
+from app.api.auth import require_api_token, require_sync_token
 from app.config import settings
 from app.database import get_db
 from app.schemas.catalog import ProductListResponse, ProductOut, SyncResult, UnitOut
@@ -13,9 +13,11 @@ from app.services.catalog import (
     list_products,
     list_units,
     product_to_out,
+    rebuild_catalog_visible_groups,
     sync_products,
     sync_units,
 )
+from app.services.catalog_rebuild import request_catalog_rebuild
 
 router = APIRouter(tags=["catalog"])
 
@@ -125,7 +127,7 @@ async def get_products_legacy(
     return ProductListResponse(total=total, items=items)
 
 
-@router.post("/sync/units", response_model=SyncResult, dependencies=[Depends(require_api_token)])
+@router.post("/sync/units", response_model=SyncResult, dependencies=[Depends(require_sync_token)])
 async def sync_units_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),
@@ -143,7 +145,9 @@ async def sync_units_endpoint(
     return SyncResult(data_type=data_type, received=len(items), upserted=upserted)
 
 
-@router.post("/sync/products", response_model=SyncResult, dependencies=[Depends(require_api_token)])
+@router.post(
+    "/sync/products", response_model=SyncResult, dependencies=[Depends(require_sync_token)]
+)
 async def sync_products_endpoint(
     payload: dict[str, Any],
     session: AsyncSession = Depends(get_db),
@@ -157,5 +161,20 @@ async def sync_products_endpoint(
     if not isinstance(items, list):
         raise HTTPException(status_code=400, detail="Expected data array")
 
-    upserted = await sync_products(session, items)
+    upserted = await sync_products(session, items, rebuild_groups=False)
+    # Кэш групп пересчитывается в фоне один раз после серии пачек.
+    await request_catalog_rebuild()
     return SyncResult(data_type=data_type, received=len(items), upserted=upserted)
+
+
+@router.post("/sync/rebuild", dependencies=[Depends(require_sync_token)])
+async def sync_rebuild_endpoint(
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, int]:
+    """Необязательно: пересчитать кэш групп сразу (например, в конце обмена 1С).
+
+    Без этого вызова пересчёт всё равно произойдёт сам через
+    CATALOG_REBUILD_DEBOUNCE_SECONDS после последней пачки /sync/products.
+    """
+    entries = await rebuild_catalog_visible_groups(session)
+    return {"visible_groups": entries}
