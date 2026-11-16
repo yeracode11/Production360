@@ -55,6 +55,10 @@ class WriteoffRepositoryImpl implements WriteoffRepository {
           author: writeoff.author,
         );
       }
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: writeoffs.map((doc) => doc.id),
+        loadDetails: getWriteoffById,
+      );
       return writeoffs;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));

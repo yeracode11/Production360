@@ -61,6 +61,10 @@ class InventoryRepositoryImpl implements InventoryRepository {
           author: document.author,
         );
       }
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: inventories.map((doc) => doc.id),
+        loadDetails: getInventoryById,
+      );
       return inventories;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));

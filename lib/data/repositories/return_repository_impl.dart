@@ -97,6 +97,10 @@ class ReturnRepositoryImpl implements ReturnRepository {
           ),
         ),
       );
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: returns.map((doc) => doc.id),
+        loadDetails: getReturnById,
+      );
       return returns;
     } on DioException catch (e) {
       throw Exception(_mapDioError(e));

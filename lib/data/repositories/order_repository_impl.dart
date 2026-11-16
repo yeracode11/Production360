@@ -95,6 +95,10 @@ class OrderRepositoryImpl implements OrderRepository {
           ),
         ),
       );
+      await DocumentAuthorSupport.loadMissingAuthors(
+        documentIds: orders.map((doc) => doc.id),
+        loadDetails: getOrderById,
+      );
       if (status != null) {
         return orders.where((o) => o.status == status).toList();
       }
