@@ -8,11 +8,11 @@ abstract final class DocumentAuthorSupport {
     String? authorLogin,
     String? author,
   }) {
-    if (authorLogin?.trim().isNotEmpty == true) {
-      return authorLogin!.trim();
-    }
-    if (author?.trim().isNotEmpty == true) {
-      return author!.trim();
+    for (final candidate in [authorLogin, author]) {
+      final value = candidate?.trim();
+      if (value == null || value.isEmpty) continue;
+      if (OneCAuthorFields.isServiceAccount(value)) continue;
+      return value;
     }
     return null;
   }
@@ -26,6 +26,7 @@ abstract final class DocumentAuthorSupport {
     final fromApi = OneCAuthorFields.parse(responseJson ?? const {}).login;
     final login = fromApi ?? sl<AuthSessionStorage>().readCredentials()?.username;
     if (login == null || login.isEmpty) return;
+    if (OneCAuthorFields.isServiceAccount(login)) return;
 
     await sl<DocumentAuthorStorage>().save(
       documentId: documentId,
