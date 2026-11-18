@@ -210,18 +210,33 @@ class _CreateProductionScreenState extends State<CreateProductionScreen> {
       setState(() => _createdDocumentId = result.id);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(exceptionMessage(e)),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 6),
-        ),
-      );
+      await _showCreateError(productionErrorMessage(e));
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<void> _showCreateError(String message) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.productionCreateFailedTitle),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            message,
+            style: TextStyle(color: AppColors.error),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

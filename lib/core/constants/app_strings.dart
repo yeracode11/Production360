@@ -232,6 +232,11 @@ abstract final class AppStrings {
   static const String selectRawMaterialsWarehouse = 'Выберите склад сырья';
   static const String productionStructuralUnitError =
       '1С не смогла провести производство. Проверьте совместимость склада сырья с выбранной торговой точкой и настройки номенклатуры в 1С.';
+  static const String productionStockShortageError =
+      'Недостаточно сырья на складе сырья для проведения производства. Уменьшите количество или оприходуйте сырьё.';
+  static const String productionCreateFailedTitle =
+      'Производство не проведено';
+  static const String oneCResponse = 'Ответ 1С';
   static const String productionUsagePlaces = 'Места использования';
   static const String productionUsagePlace = 'Место использования';
   static const String noProductionUsagePlaces = 'Места использования не указаны';
