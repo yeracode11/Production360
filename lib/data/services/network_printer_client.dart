@@ -49,9 +49,9 @@ class NetworkPrinterClient {
         'TCP соединение OK за ${stopwatch.elapsedMilliseconds} ms',
       );
     } on SocketException catch (e) {
-      throw _mapSocketException(e, trimmedHost, port);
+      throw await _mapSocketException(e, trimmedHost, port);
     } on TimeoutException {
-      throw _timeoutException(trimmedHost, port);
+      throw await _timeoutException(trimmedHost, port);
     } finally {
       await socket?.close();
       if (socket != null) {
@@ -104,9 +104,9 @@ class NetworkPrinterClient {
       await Future<void>.delayed(postSendDelay);
       PrinterLog.info('Печать завершена за ${stopwatch.elapsedMilliseconds} ms');
     } on SocketException catch (e) {
-      throw _mapSocketException(e, trimmedHost, port);
+      throw await _mapSocketException(e, trimmedHost, port);
     } on TimeoutException {
-      throw _timeoutException(trimmedHost, port);
+      throw await _timeoutException(trimmedHost, port);
     } catch (e) {
       if (e is NetworkPrinterException) rethrow;
       PrinterLog.error('Неожиданная ошибка: $e');
@@ -127,21 +127,77 @@ class NetworkPrinterClient {
     return trimmedHost;
   }
 
-  NetworkPrinterException _timeoutException(String host, int port) {
+  Future<NetworkPrinterException> _timeoutException(
+    String host,
+    int port,
+  ) async {
     PrinterLog.error('Таймаут подключения $host:$port');
+    final hint = await _subnetHint(host);
     return NetworkPrinterException(
       'Принтер не ответил за ${connectTimeout.inSeconds} с ($host:$port). '
-      'Проверьте: принтер включён, IP на сетевом отчёте совпадает, '
-      'шлюз принтера 192.168.2.1, телефон в Wi‑Fi 192.168.2.x, '
-      'в настройках iOS разрешена локальная сеть для Production360.',
+      '$hint',
     );
   }
 
-  NetworkPrinterException _mapSocketException(
+  /// Подсказка на основе реального IP телефона, а не захардкоженной подсети.
+  Future<String> _subnetHint(String host) async {
+    final printerPrefix = _subnetPrefix(host);
+    final phoneIps = await _localIPv4Addresses();
+    PrinterLog.info(
+      'IPv4 телефона: ${phoneIps.isEmpty ? '—' : phoneIps.join(', ')}',
+    );
+
+    if (printerPrefix != null && phoneIps.isNotEmpty) {
+      final sameSubnet =
+          phoneIps.any((ip) => _subnetPrefix(ip) == printerPrefix);
+      if (!sameSubnet) {
+        return 'Телефон в сети ${phoneIps.join(', ')}, а принтер $host — '
+            'это разные подсети, телефон не достучится до принтера. '
+            'Подключите телефон к Wi‑Fi сети $printerPrefix.x '
+            'или смените IP принтера на адрес из сети телефона.';
+      }
+      return 'Телефон (${phoneIps.join(', ')}) и принтер в одной подсети. '
+          'Проверьте: принтер включён и IP на его сетевом отчёте совпадает; '
+          'в Настройках iOS → Конфиденциальность → Локальная сеть включён '
+          'Production360; на роутере выключена изоляция клиентов Wi‑Fi.';
+    }
+
+    return 'Проверьте: принтер включён, IP на сетевом отчёте совпадает, '
+        'телефон в той же Wi‑Fi сети, что и принтер, '
+        'в настройках iOS разрешена локальная сеть для Production360.';
+  }
+
+  /// Первые три октета IPv4 (подсеть /24), либо null если это не IPv4.
+  static String? _subnetPrefix(String ip) {
+    final parts = ip.trim().split('.');
+    if (parts.length != 4 || parts.any((p) => int.tryParse(p) == null)) {
+      return null;
+    }
+    return parts.take(3).join('.');
+  }
+
+  static Future<List<String>> _localIPv4Addresses() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+      return [
+        for (final i in interfaces)
+          for (final a in i.addresses)
+            if (!a.isLinkLocal) a.address,
+      ];
+    } catch (e) {
+      PrinterLog.error('Не удалось получить IP телефона: $e');
+      return const [];
+    }
+  }
+
+  Future<NetworkPrinterException> _mapSocketException(
     SocketException e,
     String host,
     int port,
-  ) {
+  ) async {
     final code = e.osError?.errorCode;
     final osMessage = e.osError?.message ?? e.message;
     PrinterLog.error(
@@ -157,15 +213,15 @@ class NetworkPrinterClient {
     }
 
     if (code == 51 || code == 65 || osMessage.toLowerCase().contains('unreachable')) {
+      final hint = await _subnetHint(host);
       return NetworkPrinterException(
-        'Сеть недоступна ($host). IP принтера и телефона должны быть в одной '
-        'подсети (например 192.168.2.x). Распечатайте сетевой отчёт.',
+        'Сеть недоступна ($host). $hint',
         cause: e,
       );
     }
 
     if (osMessage.toLowerCase().contains('timed out')) {
-      return _timeoutException(host, port);
+      return await _timeoutException(host, port);
     }
 
     return NetworkPrinterException(
